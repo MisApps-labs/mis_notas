@@ -26,6 +26,7 @@ import com.ferlagod.misnotas.data.remote.webdav.WebDavAuthException
 import com.ferlagod.misnotas.data.remote.webdav.WebDavClient
 import com.ferlagod.misnotas.data.remote.webdav.WebDavException
 import com.ferlagod.misnotas.data.remote.webdav.WebDavPreconditionFailedException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -278,7 +279,7 @@ class SyncRepository private constructor(context: Context) {
         pushAttachments(client, key)
         pushNotes(client, key, remote)
 
-        cleanupOrphanAttachments()
+        cleanupOrphanAttachments(client, remote)
         tombstoneDao.getAll().filter { it.fileName !in remote }.forEach { tombstoneDao.delete(it.fileName) }
     }
 
@@ -309,7 +310,7 @@ class SyncRepository private constructor(context: Context) {
                 when (val action = SyncMerger.resolveFolder(current, record, meta.etag)) {
                     is MergeAction.SaveRemote -> folderDao.upsertFolder(action.entity)
                     is MergeAction.KeepLocal -> folderDao.setRemoteEtag(id, action.etag)
-                    MergeAction.DeleteLocal, is MergeAction.TrashLocal -> folderDao.deletePermanently(id)
+                    MergeAction.DeleteLocal, is MergeAction.TrashLocal -> deleteFolderAndDetachInTx(id)
                     else -> Unit
                 }
             }
@@ -318,12 +319,25 @@ class SyncRepository private constructor(context: Context) {
         for (local in folderDao.getAll()) {
             if (local.id in remoteFolders) continue
             when (SyncMerger.resolveMissingRemote(local.syncStatus, local.remoteEtag)) {
-                MissingRemoteAction.DELETE_LOCAL -> folderDao.deletePermanently(local.id)
+                MissingRemoteAction.DELETE_LOCAL -> deleteFolderAndDetachLocally(local.id)
                 MissingRemoteAction.MARK_FOR_UPLOAD -> folderDao.updateSyncStatus(local.id, SyncStatus.PENDING_UPLOAD)
                 MissingRemoteAction.FORGET_ETAG -> folderDao.setRemoteEtag(local.id, null)
                 MissingRemoteAction.NOTHING, MissingRemoteAction.TRASH_AND_REUPLOAD -> Unit
             }
         }
+    }
+
+    private suspend fun deleteFolderAndDetachInTx(id: String) {
+        val folder = folderDao.getFolderById(id)
+        noteDao.detachFromFolder(id)
+        if (folder != null) {
+            folderDao.reparentChildren(id, folder.parentId)
+        }
+        folderDao.deletePermanently(id)
+    }
+
+    private suspend fun deleteFolderAndDetachLocally(id: String) {
+        database.withTransaction { deleteFolderAndDetachInTx(id) }
     }
 
     private suspend fun pullNotes(client: WebDavClient, key: SecretKey, remote: Map<String, RemoteFileMeta>) {
@@ -581,14 +595,42 @@ class SyncRepository private constructor(context: Context) {
         }
     }
 
-    /** Borra en local los adjuntos que ya no usa ninguna nota (tras un periodo de gracia). */
-    private suspend fun cleanupOrphanAttachments() {
+    /** Borra en local y en remoto los adjuntos que ya no usa ninguna nota (tras un periodo de gracia). */
+    private suspend fun cleanupOrphanAttachments(client: WebDavClient, remote: Map<String, RemoteFileMeta>) {
         val referenced = noteDao.getAllLiveContents().flatMapTo(mutableSetOf()) { AttachmentStore.referencedIds(it) }
         val threshold = System.currentTimeMillis() - ORPHAN_ATTACHMENT_GRACE_MS
+        val localIds = HashSet<String>()
         for (attachment in attachmentDao.getAll()) {
+            localIds += attachment.id
             if (attachment.id !in referenced && attachment.createdAt < threshold) {
+                val remoteName = attachmentFile(attachment.id)
+                if (remote.containsKey(remoteName) && warnings == 0) {
+                    try {
+                        client.delete(remoteName)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "No se pudo borrar adjunto remoto ${attachment.id}", e)
+                        continue
+                    }
+                }
                 attachmentStore.delete(attachment.id)
                 attachmentDao.delete(attachment.id)
+            }
+        }
+        if (warnings == 0) {
+            for (meta in remote.values) {
+                if (!meta.name.startsWith(ATTACHMENT_PREFIX) || !meta.name.endsWith(BIN_EXT)) continue
+                val id = meta.name.removePrefix(ATTACHMENT_PREFIX).removeSuffix(BIN_EXT)
+                if (id !in referenced && id !in localIds && meta.lastModified in 1 until threshold) {
+                    try {
+                        client.delete(meta.name)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "No se pudo borrar adjunto remoto huérfano ${meta.name}", e)
+                    }
+                }
             }
         }
     }

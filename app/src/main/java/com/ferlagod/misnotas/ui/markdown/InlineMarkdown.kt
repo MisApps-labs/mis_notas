@@ -134,7 +134,14 @@ object InlineMarkdown {
         if (text.indexOf('\n', open).let { it in open until close }) return null
         val urlStart = close + 2
         var p = urlStart
-        while (p < to && text[p] != ')' && !text[p].isWhitespace()) p++
+        var depth = 0
+        while (p < to && !text[p].isWhitespace()) {
+            when (text[p]) {
+                '(' -> depth++
+                ')' -> if (depth > 0) depth-- else break
+            }
+            p++
+        }
         if (p >= to || text[p] != ')' || p == urlStart) return null
         return InlineToken(
             if (image) InlineKind.IMAGE else InlineKind.LINK,
@@ -146,8 +153,13 @@ object InlineMarkdown {
         if (!text.startsWith("http://", i) && !text.startsWith("https://", i)) return null
         if (i > from && text[i - 1].isLetterOrDigit()) return null
         var end = i
-        while (end < to && !text[end].isWhitespace() && text[end] !in "<>()[]") end++
-        while (end > i && text[end - 1] in ".,;:!?'\"") end--
+        while (end < to && !text[end].isWhitespace() && text[end] !in "<>[]") end++
+        while (end > i) {
+            val last = text[end - 1]
+            val unbalancedClose = last == ')' &&
+                text.substring(i, end).let { s -> s.count { it == ')' } > s.count { it == '(' } }
+            if (last in ".,;:!?'\"’”]" || unbalancedClose) end-- else break
+        }
         if (end - i <= "https://".length) return null
         return InlineToken(InlineKind.AUTOLINK, i, end, i, end, text.substring(i, end))
     }

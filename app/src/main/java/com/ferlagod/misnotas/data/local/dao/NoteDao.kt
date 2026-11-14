@@ -72,8 +72,11 @@ interface NoteDao {
     @Query("UPDATE notes SET isDeleted = 1, syncStatus = 'PENDING_DELETE', updatedAt = :updatedAt WHERE id = :id")
     suspend fun markForPurge(id: String, updatedAt: Long = System.currentTimeMillis())
 
-    @Query("UPDATE notes SET syncStatus = 'PENDING_DELETE' WHERE isDeleted = 1")
-    suspend fun markTrashForPurge()
+    @Query("UPDATE notes SET syncStatus = 'PENDING_DELETE', updatedAt = :updatedAt WHERE isDeleted = 1")
+    suspend fun markTrashForPurge(updatedAt: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM notes WHERE syncStatus = 'PENDING_DELETE'")
+    suspend fun deletePendingPurge()
 
     @Query("DELETE FROM notes WHERE isDeleted = 1")
     suspend fun deleteTrashPermanently()

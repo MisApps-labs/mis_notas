@@ -291,4 +291,7 @@
     </plurals>
     <string name="pane_no_note_title">Nessuna nota aperta</string>
     <string name="pane_no_note_message">Scegli una nota dall’elenco o creane una nuova.</string>
+    <string name="image_view_fullscreen">Visualizza a schermo intero</string>
+    <string name="image_delete">Elimina immagine</string>
+    <string name="folder_duplicate_error">Esiste già una cartella con questo nome in questa posizione</string>
 </resources>

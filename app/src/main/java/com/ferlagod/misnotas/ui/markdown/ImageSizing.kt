@@ -41,10 +41,17 @@ object ImageSizing {
      */
     fun resizeAt(text: String, start: Int, end: Int, percent: Int): String {
         if (start < 0 || end > text.length || start >= end) return text
-        val match = IMAGE_MARKDOWN.find(text.substring(start, end)) ?: return text
-        val replaced = "![${match.groupValues[1]}](${withSize(match.groupValues[2], percent)})"
-        val absStart = start + match.range.first
-        val absEnd = start + match.range.last + 1
-        return text.substring(0, absStart) + replaced + text.substring(absEnd)
+        val token = InlineMarkdown.parse(text, start, end).firstOrNull { it.kind == InlineKind.IMAGE }
+            ?: run {
+                val match = IMAGE_MARKDOWN.find(text.substring(start, end)) ?: return text
+                val replaced = "![${match.groupValues[1]}](${withSize(match.groupValues[2], percent)})"
+                val absStart = start + match.range.first
+                val absEnd = start + match.range.last + 1
+                return text.substring(0, absStart) + replaced + text.substring(absEnd)
+            }
+        val alt = text.substring(token.contentStart, token.contentEnd)
+        val source = token.url ?: return text
+        val replaced = "![$alt](${withSize(source, percent)})"
+        return text.substring(0, token.start) + replaced + text.substring(token.end)
     }
 }

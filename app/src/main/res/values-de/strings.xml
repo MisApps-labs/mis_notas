@@ -278,4 +278,7 @@
     </plurals>
     <string name="pane_no_note_title">Keine Notiz geöffnet</string>
     <string name="pane_no_note_message">Wähle eine Notiz aus der Liste oder erstelle eine neue.</string>
+    <string name="image_view_fullscreen">Vollbild anzeigen</string>
+    <string name="image_delete">Bild löschen</string>
+    <string name="folder_duplicate_error">Ein Ordner mit diesem Namen existiert hier bereits</string>
 </resources>

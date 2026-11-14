@@ -681,6 +681,14 @@ private fun FolderDialog(
         currentFolderId?.let { FolderTree.descendantIds(existingFolders, it) + it }.orEmpty()
     }
     val parentName = existingFolders.firstOrNull { it.id == selectedParentId }?.name
+    val duplicateName = remember(folderName, selectedParentId, existingFolders, currentFolderId) {
+        val trimmed = folderName.trim()
+        trimmed.isNotEmpty() && existingFolders.any {
+            it.id != currentFolderId &&
+                it.parentId == selectedParentId &&
+                it.name.equals(trimmed, ignoreCase = true)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -692,9 +700,15 @@ private fun FolderDialog(
                     onValueChange = { folderName = it.replace("\n", "") },
                     placeholder = { Text(stringResource(R.string.folder_name_hint)) },
                     singleLine = true,
+                    isError = duplicateName,
+                    supportingText = if (duplicateName) {
+                        { Text(stringResource(R.string.folder_duplicate_error), color = AccentRed, fontSize = 12.sp) }
+                    } else null,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = {
-                        if (folderName.isNotBlank()) onConfirm(folderName, selectedColor, selectedParentId)
+                        if (folderName.isNotBlank() && !duplicateName) {
+                            onConfirm(folderName, selectedColor, selectedParentId)
+                        }
                     }),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -760,7 +774,7 @@ private fun FolderDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(folderName, selectedColor, selectedParentId) },
-                enabled = folderName.isNotBlank()
+                enabled = folderName.isNotBlank() && !duplicateName
             ) {
                 Text(text = stringResource(R.string.save), fontWeight = FontWeight.Bold)
             }

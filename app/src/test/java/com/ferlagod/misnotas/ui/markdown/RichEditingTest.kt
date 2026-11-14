@@ -214,4 +214,56 @@ class RichEditingTest {
         assertEquals("```\n**x **\n```", normalizeMarkdown("```\n**x **\n```"))
         assertEquals("sin cambios", normalizeMarkdown("sin cambios"))
     }
+
+    @Test
+    fun balancedParenthesesInLinksImagesAndAutolinks() {
+        val mdLink = "Lee [Kotlin](https://es.wikipedia.org/wiki/Kotlin_(lenguaje)) aquí"
+        val linkToken = InlineMarkdown.parse(mdLink).single()
+        assertEquals(InlineKind.LINK, linkToken.kind)
+        assertEquals("https://es.wikipedia.org/wiki/Kotlin_(lenguaje)", linkToken.url)
+        assertEquals("Lee Kotlin aquí", shown(mdLink))
+
+        val mdImg = "Mira ![diagrama](https://example.com/img_(1).png) ahora"
+        val imgToken = InlineMarkdown.parse(mdImg).single()
+        assertEquals(InlineKind.IMAGE, imgToken.kind)
+        assertEquals("https://example.com/img_(1).png", imgToken.url)
+
+        val resized = ImageSizing.resizeAt(mdImg, imgToken.start, imgToken.end, 60)
+        assertEquals("Mira ![diagrama](https://example.com/img_(1).png#w=60) ahora", resized)
+
+        val auto = "Consulta https://es.wikipedia.org/wiki/Kotlin_(lenguaje)."
+        val autoToken = InlineMarkdown.parse(auto).single()
+        assertEquals(InlineKind.AUTOLINK, autoToken.kind)
+        assertEquals("https://es.wikipedia.org/wiki/Kotlin_(lenguaje)", autoToken.url)
+
+        val parenWrapped = "(ver https://es.wikipedia.org/wiki/Kotlin_(lenguaje))."
+        val wrappedToken = InlineMarkdown.parse(parenWrapped).single()
+        assertEquals("https://es.wikipedia.org/wiki/Kotlin_(lenguaje)", wrappedToken.url)
+
+        assertEquals(
+            "https://es.wikipedia.org/wiki/Kotlin_(lenguaje)",
+            normalizeUrl("https://es.wikipedia.org/wiki/Kotlin_(lenguaje)")
+        )
+        assertEquals("https://ejemplo.com/a%29b", normalizeUrl("ejemplo.com/a)b"))
+    }
+
+    @Test
+    fun plainTextPreviewAndBlocksHandleInlineAndResizedImages() {
+        val note = "Hola ![foto](attachment://abc-123#w=50) mundo\nVer [Wiki](https://es.wikipedia.org/wiki/Kotlin_(lenguaje))"
+        val plain = markdownPlainText(note)
+        assertTrue(!plain.contains("attachment://"))
+        assertEquals(
+            "Hola mundo\nVer Wiki (https://es.wikipedia.org/wiki/Kotlin_(lenguaje))",
+            plain
+        )
+
+        val preview = markdownPreview("![portada](attachment://xyz#w=80)\nPrimera línea\nSegunda", maxLines = 2)
+        assertEquals("Primera línea\nSegunda", preview)
+
+        val blocks = parseBlocks("Antes ![foto](attachment://abc) después")
+        assertEquals(3, blocks.size)
+        assertEquals(MdBlock.Paragraph("Antes"), blocks[0])
+        assertEquals(MdBlock.Image(6, 31, "foto", "attachment://abc"), blocks[1])
+        assertEquals(MdBlock.Paragraph("después"), blocks[2])
+    }
 }

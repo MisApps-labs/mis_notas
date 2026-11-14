@@ -55,6 +55,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -282,9 +284,22 @@ fun EmptyState(
 fun ZoomableImageDialog(model: Any, onDismiss: () -> Unit) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+
+    fun clampOffset(raw: Offset, s: Float): Offset {
+        if (s <= 1f || containerSize.width == 0 || containerSize.height == 0) return Offset.Zero
+        val maxX = (containerSize.width * (s - 1f)) / 2f
+        val maxY = (containerSize.height * (s - 1f)) / 2f
+        return Offset(
+            x = raw.x.coerceIn(-maxX, maxX),
+            y = raw.y.coerceIn(-maxY, maxY)
+        )
+    }
+
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 6f)
-        offset = if (scale > 1f) offset + panChange else Offset.Zero
+        val newScale = (scale * zoomChange).coerceIn(1f, 6f)
+        scale = newScale
+        offset = clampOffset(offset + panChange, newScale)
     }
 
     Dialog(
@@ -295,6 +310,7 @@ fun ZoomableImageDialog(model: Any, onDismiss: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
+                .onSizeChanged { containerSize = it }
         ) {
             AsyncImage(
                 model = model,

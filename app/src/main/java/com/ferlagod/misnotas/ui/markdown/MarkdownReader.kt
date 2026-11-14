@@ -54,7 +54,7 @@ import com.ferlagod.misnotas.ui.theme.AccentGreen
 /**
  * Bloques Markdown reconocidos por el lector. Subconjunto de CommonMark/GFM pensado para notas.
  */
-private sealed interface MdBlock {
+internal sealed interface MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock
     data class Paragraph(val text: String) : MdBlock
     data class Quote(val text: String) : MdBlock
@@ -62,7 +62,7 @@ private sealed interface MdBlock {
     data class Bullet(val text: String, val indent: Int) : MdBlock
     data class Numbered(val number: String, val text: String, val indent: Int) : MdBlock
     data class Code(val text: String) : MdBlock
-    data class Image(val lineIndex: Int, val alt: String, val source: String) : MdBlock
+    data class Image(val start: Int, val end: Int, val alt: String, val source: String) : MdBlock
     data class Table(val header: List<String>, val rows: List<List<String>>) : MdBlock
     data object Rule : MdBlock
     data object Blank : MdBlock
@@ -72,15 +72,32 @@ private val TASK_REGEX = Regex("""^(\s*)[-*+] \[( |x|X)] (.*)$""")
 private val BULLET_REGEX = Regex("""^(\s*)[-*+] (.*)$""")
 private val NUMBERED_REGEX = Regex("""^(\s*)(\d{1,9})[.)] (.*)$""")
 private val HEADING_REGEX = Regex("""^(#{1,6}) (.*)$""")
-private val IMAGE_REGEX = Regex("""^\s*!\[(.*?)]\((.*?)\)\s*$""")
+private val INLINE_IMAGE_REGEX = Regex("""!\[[^\]]*]\((?:[^()\s]|\([^()\s]*\))*\)""")
+private val INLINE_LINK_REGEX = Regex("""\[([^\]]+)]\((?:[^()\s]|\([^()\s]*\))*\)""")
+private val INLINE_LINK_WITH_URL_REGEX = Regex("""\[([^\]]+)]\(((?:[^()\s]|\([^()\s]*\))*)\)""")
 private val RULE_REGEX = Regex("""^\s*([-*_])(\s*\1){2,}\s*$""")
 private val TABLE_SEPARATOR = Regex("""^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$""")
 
 private fun tableCells(line: String): List<String> =
     line.trim().removePrefix("|").removeSuffix("|").split('|').map { it.trim() }
 
-private fun parseBlocks(markdown: String): List<MdBlock> {
+private fun lineStartOffsets(markdown: String, lines: List<String>): IntArray {
+    val starts = IntArray(lines.size)
+    var pos = 0
+    for (idx in lines.indices) {
+        starts[idx] = pos
+        pos += lines[idx].length
+        if (pos < markdown.length) {
+            if (markdown[pos] == '\r') pos++
+            if (pos < markdown.length && markdown[pos] == '\n') pos++
+        }
+    }
+    return starts
+}
+
+internal fun parseBlocks(markdown: String): List<MdBlock> {
     val lines = markdown.lines()
+    val lineStarts = lineStartOffsets(markdown, lines)
     val blocks = mutableListOf<MdBlock>()
     var i = 0
     while (i < lines.size) {
@@ -115,10 +132,6 @@ private fun parseBlocks(markdown: String): List<MdBlock> {
                 val m = HEADING_REGEX.find(line)!!
                 blocks += MdBlock.Heading(m.groupValues[1].length, m.groupValues[2])
             }
-            IMAGE_REGEX.matches(line) -> {
-                val m = IMAGE_REGEX.find(line)!!
-                blocks += MdBlock.Image(i, m.groupValues[1], m.groupValues[2])
-            }
             TASK_REGEX.matches(line) -> {
                 val m = TASK_REGEX.find(line)!!
                 blocks += MdBlock.Task(i, m.groupValues[2].isNotBlank(), m.groupValues[3], m.groupValues[1].length / 2)
@@ -133,7 +146,32 @@ private fun parseBlocks(markdown: String): List<MdBlock> {
             }
             line.startsWith(">") -> blocks += MdBlock.Quote(line.removePrefix(">").trimStart())
             line.startsWith("    ") || line.startsWith("\t") -> blocks += MdBlock.Code(line.trim())
-            else -> blocks += MdBlock.Paragraph(line)
+            else -> {
+                val imageTokens = InlineMarkdown.parse(line).filter { it.kind == InlineKind.IMAGE }
+                if (imageTokens.isEmpty()) {
+                    blocks += MdBlock.Paragraph(line)
+                } else {
+                    var cursor = 0
+                    val lineStart = lineStarts[i]
+                    for (token in imageTokens) {
+                        if (token.start > cursor) {
+                            val before = line.substring(cursor, token.start).trim()
+                            if (before.isNotEmpty()) blocks += MdBlock.Paragraph(before)
+                        }
+                        blocks += MdBlock.Image(
+                            start = lineStart + token.start,
+                            end = lineStart + token.end,
+                            alt = line.substring(token.contentStart, token.contentEnd),
+                            source = token.url.orEmpty()
+                        )
+                        cursor = token.end
+                    }
+                    if (cursor < line.length) {
+                        val after = line.substring(cursor).trim()
+                        if (after.isNotEmpty()) blocks += MdBlock.Paragraph(after)
+                    }
+                }
+            }
         }
         i++
     }
@@ -176,8 +214,8 @@ fun MarkdownReader(
     primaryBlue: Color,
     onToggleChecklist: (lineIndex: Int) -> Unit,
     onImageClick: ((Any) -> Unit)? = null,
-    /** Pulsación larga en una imagen (para cambiar su tamaño): línea que ocupa y su dirección. */
-    onImageLongClick: ((lineIndex: Int, source: String) -> Unit)? = null
+    /** Pulsación larga en una imagen (para cambiar su tamaño): rango [start, end) y su dirección. */
+    onImageLongClick: ((start: Int, end: Int, source: String) -> Unit)? = null
 ) {
     val blocks = remember(markdownText) { parseBlocks(markdownText) }
     val linkColor = primaryBlue
@@ -284,7 +322,7 @@ fun MarkdownReader(
                             contentDescription = block.alt.ifBlank { null },
                             widthPercent = ImageSizing.widthPercent(block.source),
                             onClick = onImageClick?.let { click -> { click(model) } },
-                            onLongClick = onImageLongClick?.let { longClick -> { longClick(block.lineIndex, block.source) } }
+                            onLongClick = onImageLongClick?.let { longClick -> { longClick(block.start, block.end, block.source) } }
                         )
                     }
                 }
@@ -417,15 +455,19 @@ fun inline(text: String, linkColor: Color = Color.Unspecified): AnnotatedString 
  */
 fun markdownPlainText(markdown: String): String =
     markdown.lineSequence()
-        .filterNot { IMAGE_REGEX.matches(it) && it.contains(AttachmentStore.SCHEME) }
         .filterNot { it.trimStart().startsWith("```") || TABLE_SEPARATOR.matches(it) }
-        .map { line ->
-            line.replace(Regex("""^#{1,6} """), "")
+        .mapNotNull { line ->
+            val wasBlank = line.isBlank()
+            val cleaned = line.replace(Regex("""^#{1,6} """), "")
                 .replace(Regex("""^(\s*)[-*+] \[(x|X)] """), "$1☑ ")
                 .replace(Regex("""^(\s*)[-*+] \[ ] """), "$1☐ ")
                 .replace(Regex("""^(\s*)[-*+] """), "$1• ")
                 .replace(Regex("""\*\*|~~|`"""), "")
-                .replace(Regex("""\[([^\]]+)]\(([^)]*)\)"""), "$1 ($2)")
+                .replace(INLINE_IMAGE_REGEX, "")
+                .replace(INLINE_LINK_WITH_URL_REGEX, "$1 ($2)")
+                .replace(Regex(" {2,}"), " ")
+                .trimEnd()
+            if (!wasBlank && cleaned.isBlank()) null else cleaned
         }
         .joinToString("\n")
         .replace(Regex("\n{3,}"), "\n\n")
@@ -434,7 +476,7 @@ fun markdownPlainText(markdown: String): String =
 /** Texto plano aproximado de una nota, para vistas previas en tarjetas. */
 fun markdownPreview(markdown: String, maxLines: Int = 8): String =
     markdown.lineSequence()
-        .filterNot { it.isBlank() || IMAGE_REGEX.matches(it) || it.trimStart().startsWith("```") || TABLE_SEPARATOR.matches(it) }
+        .filterNot { it.isBlank() || it.trimStart().startsWith("```") || TABLE_SEPARATOR.matches(it) }
         .map { line ->
             line.replace(Regex("""^#{1,6} """), "")
                 .replace(Regex("""^(\s*)[-*+] \[(x|X)] """), "$1☑ ")
@@ -442,7 +484,10 @@ fun markdownPreview(markdown: String, maxLines: Int = 8): String =
                 .replace(Regex("""^(\s*)[-*+] """), "$1• ")
                 .replace(Regex("""^> ?"""), "")
                 .replace(Regex("""\*\*|__|~~|`"""), "")
-                .replace(Regex("""\[([^\]]+)]\([^)]*\)"""), "$1")
+                .replace(INLINE_IMAGE_REGEX, "")
+                .replace(INLINE_LINK_REGEX, "$1")
+                .trim()
         }
+        .filter { it.isNotEmpty() }
         .take(maxLines)
         .joinToString("\n")

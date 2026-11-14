@@ -279,4 +279,7 @@
     </plurals>
     <string name="pane_no_note_title">No note selected</string>
     <string name="pane_no_note_message">Choose a note from the list or create a new one.</string>
+    <string name="image_view_fullscreen">View full screen</string>
+    <string name="image_delete">Delete image</string>
+    <string name="folder_duplicate_error">A folder with this name already exists here</string>
 </resources>

@@ -85,10 +85,15 @@ object AppDestinations {
     const val FOLDERS = "folders"
     const val NOTES = "notes"
     const val SETTINGS = "settings"
-    const val EDITOR = "editor?noteId={noteId}&folderId={folderId}&pin={pin}"
+    const val EDITOR = "editor?noteId={noteId}&folderId={folderId}&pin={pin}&isNew={isNew}"
 
-    fun editorRoute(noteId: String? = null, folderId: String? = null, pin: Boolean = false): String =
-        "editor?noteId=${noteId.orEmpty()}&folderId=${folderId.orEmpty()}&pin=$pin"
+    fun editorRoute(
+        noteId: String? = null,
+        folderId: String? = null,
+        pin: Boolean = false,
+        isNew: Boolean = noteId == null
+    ): String =
+        "editor?noteId=${noteId.orEmpty()}&folderId=${folderId.orEmpty()}&pin=$pin&isNew=$isNew"
 }
 
 class MainActivity : ComponentActivity() {
@@ -421,7 +426,8 @@ private fun AppNavigationHost(
                             AppDestinations.editorRoute(
                                 noteId = noteId,
                                 folderId = newNoteFolder.takeIf { isNew },
-                                pin = isNew && newNotePinned
+                                pin = isNew && newNotePinned,
+                                isNew = isNew
                             )
                         )
                     }
@@ -459,10 +465,19 @@ private fun AppNavigationHost(
                                     }
                                 },
                                 onTogglePin = viewModel::togglePin,
-                                onTrash = viewModel::moveNotesToTrash,
+                                onTrash = { ids ->
+                                    if (paneNoteId != null && paneNoteId in ids) closePane()
+                                    viewModel.moveNotesToTrash(ids)
+                                },
                                 onRestore = viewModel::restoreNotes,
-                                onDeletePermanently = viewModel::deleteNotesPermanently,
-                                onEmptyTrash = viewModel::emptyTrash,
+                                onDeletePermanently = { ids ->
+                                    if (paneNoteId != null && paneNoteId in ids) closePane()
+                                    viewModel.deleteNotesPermanently(ids)
+                                },
+                                onEmptyTrash = {
+                                    closePane()
+                                    viewModel.emptyTrash()
+                                },
                                 onSetPinned = viewModel::setNotesPinned,
                                 onSetColor = viewModel::setNotesColor,
                                 onMove = viewModel::moveNotes
@@ -528,13 +543,16 @@ private fun AppNavigationHost(
             arguments = listOf(
                 navArgument("noteId") { type = NavType.StringType; defaultValue = "" },
                 navArgument("folderId") { type = NavType.StringType; defaultValue = "" },
-                navArgument("pin") { type = NavType.BoolType; defaultValue = false }
+                navArgument("pin") { type = NavType.BoolType; defaultValue = false },
+                navArgument("isNew") { type = NavType.BoolType; defaultValue = false }
             )
         ) { backStackEntry ->
             val noteIdArg = backStackEntry.arguments?.getString("noteId")?.takeIf { it.isNotBlank() }
+            val isNewArg = backStackEntry.arguments?.getBoolean("isNew") ?: false
             EditorHost(
                 viewModel = viewModel,
                 noteId = noteIdArg,
+                isNewNote = noteIdArg == null || isNewArg,
                 folderId = backStackEntry.arguments?.getString("folderId")?.takeIf { it.isNotBlank() },
                 initialPinned = backStackEntry.arguments?.getBoolean("pin") ?: false,
                 folders = folders,
@@ -581,6 +599,18 @@ private fun EditorHost(
     // Versión en vivo: si llega un cambio de otro dispositivo y no se ha tocado la nota, se muestra.
     val liveNoteFlow = remember(noteId) { noteId?.let(viewModel::observeNote) ?: kotlinx.coroutines.flow.flowOf(null) }
     val liveNote by liveNoteFlow.collectAsState(initial = null)
+    var everObservedLive by remember(noteId) { mutableStateOf(false) }
+    LaunchedEffect(liveNote, noteLoaded) {
+        val currentLive = liveNote
+        if (currentLive != null) everObservedLive = true
+        if (!isNewNote && noteLoaded &&
+            ((existingNote == null && currentLive == null) ||
+                (everObservedLive && currentLive == null) ||
+                (existingNote?.isDeleted != true && currentLive?.isDeleted == true))
+        ) {
+            onClose()
+        }
+    }
 
     NoteEditorScreen(
         noteId = noteId,

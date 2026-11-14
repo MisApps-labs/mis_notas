@@ -30,6 +30,8 @@ import com.ferlagod.misnotas.data.sync.SyncMerger
 import com.ferlagod.misnotas.data.sync.SyncRepository
 import com.ferlagod.misnotas.data.sync.SyncState
 import com.ferlagod.misnotas.data.sync.SyncWorker
+import com.ferlagod.misnotas.ui.markdown.markdownPlainText
+import com.ferlagod.misnotas.ui.markdown.markdownPreview
 import com.ferlagod.misnotas.ui.theme.NoteColor
 import com.ferlagod.misnotas.util.ImageCompressor
 import com.ferlagod.misnotas.util.LanguageManager
@@ -158,7 +160,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Índice de búsqueda (texto normalizado sin acentos), recalculado solo cuando cambian las notas. */
     private val searchIndex = combine(allActiveNotes, trashNotes) { active, trash ->
-        (active + trash).associate { it.id to TextSearch.normalize(it.title + "\n" + it.content) }
+        (active + trash).associate { it.id to TextSearch.normalize(it.title + "\n" + markdownPlainText(it.content)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val displayedNotes: StateFlow<List<NoteEntity>> = combine(
@@ -176,7 +178,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val terms = TextSearch.terms(query)
         val matching = if (terms.isEmpty()) filtered else filtered.filter { note ->
-            val haystack = index[note.id] ?: TextSearch.normalize(note.title + "\n" + note.content)
+            val haystack = index[note.id] ?: TextSearch.normalize(note.title + "\n" + markdownPlainText(note.content))
             terms.all { haystack.contains(it) }
         }
         if (filter is NotesFilter.Trash) matching.sortedByDescending { it.updatedAt }
@@ -202,6 +204,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             syncRepository.migrateLegacyImages()
             purgeOldTrash()
+        }
+        viewModelScope.launch {
+            allFolders.collect { folders ->
+                val current = _currentFilter.value
+                if (current is NotesFilter.Folder) {
+                    val match = folders.firstOrNull { it.id == current.folderId }
+                    if (match == null) {
+                        val exists = folderDao.getFolderById(current.folderId)?.let { !it.isDeleted } == true
+                        if (!exists) _currentFilter.value = NotesFilter.All
+                    } else if (match.name != current.folderName) {
+                        _currentFilter.value = NotesFilter.Folder(match.id, match.name)
+                    }
+                }
+            }
         }
         if (_isConfigured.value && _isUnlocked.value) {
             SyncWorker.schedule(application)
@@ -305,6 +321,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         syncRepository.resetSyncState()
         _isConfigured.value = false
         _isUnlocked.value = true
+        viewModelScope.launch { clearPendingPurgesLocked() }
     }
 
     fun logout() {
@@ -313,6 +330,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         syncRepository.resetSyncState()
         _isConfigured.value = false
         _isUnlocked.value = true
+        viewModelScope.launch { clearPendingPurgesLocked() }
+    }
+
+    private suspend fun clearPendingPurgesLocked() {
+        noteWriteMutex.withLock {
+            database.withTransaction {
+                noteDao.deletePendingPurge()
+                folderDao.deletePendingPurge()
+                database.remoteTombstoneDao().clear()
+            }
+        }
     }
 
     /** Lee la nota después de cualquier guardado pendiente (p. ej. al pasar del panel a pantalla completa). */
@@ -360,13 +388,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ==========================================
 
     fun createFolder(name: String, color: NoteColor, parentId: String? = null) {
-        if (name.isBlank()) return
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
         viewModelScope.launch {
+            val siblingConflict = folderDao.getAll().any {
+                !it.isDeleted && it.parentId == parentId && it.name.equals(trimmed, ignoreCase = true)
+            }
+            if (siblingConflict) return@launch
             folderDao.upsertFolder(
                 FolderEntity(
                     id = UUID.randomUUID().toString(),
                     parentId = parentId,
-                    name = name.trim(),
+                    name = trimmed,
                     color = color.key,
                     updatedAt = System.currentTimeMillis(),
                     syncStatus = SyncStatus.PENDING_UPLOAD
@@ -377,12 +410,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateFolder(id: String, name: String, color: NoteColor, parentId: String? = null) {
-        if (name.isBlank()) return
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
         viewModelScope.launch {
             // Evita ciclos: una carpeta no puede colgar de sí misma ni de una de sus subcarpetas.
             val folders = folderDao.getAll().filter { !it.isDeleted }
             val safeParent = parentId?.takeUnless { FolderTree.wouldCreateCycle(folders, id, it) }
-            folderDao.updateFolderDetails(id, name.trim(), color.key, safeParent)
+            val siblingConflict = folders.any {
+                it.id != id && it.parentId == safeParent && it.name.equals(trimmed, ignoreCase = true)
+            }
+            if (siblingConflict) return@launch
+            folderDao.updateFolderDetails(id, trimmed, color.key, safeParent)
             triggerSync()
         }
     }
@@ -718,10 +756,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 fun SortOrder.comparator(): Comparator<NoteEntity> = when (this) {
     SortOrder.MODIFIED_DESC -> compareByDescending { it.updatedAt }
     SortOrder.MODIFIED_ASC -> compareBy { it.updatedAt }
-    SortOrder.TITLE_ASC -> compareBy<NoteEntity, String>(String.CASE_INSENSITIVE_ORDER) { it.title.ifBlank { it.content } }
-        .thenByDescending { it.updatedAt }
-    SortOrder.TITLE_DESC -> compareByDescending<NoteEntity, String>(String.CASE_INSENSITIVE_ORDER) { it.title.ifBlank { it.content } }
-        .thenByDescending { it.updatedAt }
+    SortOrder.TITLE_ASC -> compareBy<NoteEntity, String>(String.CASE_INSENSITIVE_ORDER) {
+        it.title.ifBlank { markdownPreview(it.content, maxLines = 1) }
+    }.thenByDescending { it.updatedAt }
+    SortOrder.TITLE_DESC -> compareByDescending<NoteEntity, String>(String.CASE_INSENSITIVE_ORDER) {
+        it.title.ifBlank { markdownPreview(it.content, maxLines = 1) }
+    }.thenByDescending { it.updatedAt }
 }
 
 class MainViewModelFactory(

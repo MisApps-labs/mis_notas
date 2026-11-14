@@ -51,6 +51,9 @@ interface FolderDao {
     @Query("DELETE FROM folders WHERE id = :id")
     suspend fun deletePermanently(id: String)
 
+    @Query("DELETE FROM folders WHERE isDeleted = 1 OR syncStatus = 'PENDING_DELETE'")
+    suspend fun deletePendingPurge()
+
     /** Como [NoteDao.resetSyncMetadata]: lo sincronizado pasa a pendiente de subir. */
     @Query(
         "UPDATE folders SET remoteEtag = NULL, " +

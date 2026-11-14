@@ -356,7 +356,10 @@ fun removeLink(text: String, link: InlineToken): TextEdit {
 
 /** Añade https:// si el usuario escribe solo "ejemplo.com" y quita espacios (rompen el Markdown). */
 fun normalizeUrl(url: String): String {
-    val u = url.trim().replace(" ", "%20").replace(")", "%29")
+    var u = url.trim().replace(" ", "%20")
+    if (u.count { it == '(' } != u.count { it == ')' }) {
+        u = u.replace("(", "%28").replace(")", "%29")
+    }
     if (u.isEmpty()) return u
     val hasScheme = Regex("""^[a-zA-Z][a-zA-Z0-9+.-]*:""").containsMatchIn(u)
     return if (hasScheme) u else "https://$u"

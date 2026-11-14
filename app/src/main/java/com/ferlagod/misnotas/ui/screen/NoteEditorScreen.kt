@@ -63,6 +63,7 @@ import androidx.compose.material.icons.rounded.FormatItalic
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.FormatStrikethrough
+import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.HorizontalRule
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Link
@@ -126,7 +127,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.core.content.FileProvider
 import com.ferlagod.misnotas.R
+import com.ferlagod.misnotas.data.attachment.AttachmentStore
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
 import com.ferlagod.misnotas.ui.components.ColorPalette
@@ -135,6 +138,7 @@ import com.ferlagod.misnotas.ui.components.ZoomableImageDialog
 import com.ferlagod.misnotas.data.local.model.SyncStatus
 import com.ferlagod.misnotas.ui.markdown.ImageSizing
 import com.ferlagod.misnotas.ui.markdown.InlineKind
+import com.ferlagod.misnotas.ui.markdown.InlineMarkdown
 import com.ferlagod.misnotas.ui.markdown.NoteImage
 import com.ferlagod.misnotas.ui.markdown.rememberImageModel
 import com.ferlagod.misnotas.ui.markdown.InlineToken
@@ -336,6 +340,10 @@ fun NoteEditorScreen(
     // Si ya se había editado, se conserva lo escrito y la otra versión queda como copia "(conflicto)".
     LaunchedEffect(liveNote) {
         val note = liveNote ?: return@LaunchedEffect
+        if (note.isDeleted && existingNote?.isDeleted != true) {
+            deleted = true
+            return@LaunchedEffect
+        }
         if (!loaded || deleted || note.syncStatus != SyncStatus.SYNCED) return@LaunchedEffect
         if (note.title == baseTitle && note.content == baseContent) return@LaunchedEffect
         if (title.trim() != baseTitle.trim() || textValue.text.trimEnd() != baseContent.trimEnd()) return@LaunchedEffect
@@ -482,26 +490,41 @@ fun NoteEditorScreen(
     fun openImageResize(start: Int, end: Int) {
         val text = textValue.text
         if (start < 0 || end > text.length || start >= end) return
-        val snippet = text.substring(start, end)
-        val source = Regex("""!\[.*?]\((.*?)\)""").find(snippet)?.groupValues?.get(1) ?: return
-        imageResize = ImageResizeState(start, snippet, source)
+        val token = InlineMarkdown.parse(text, start, end).firstOrNull { it.kind == InlineKind.IMAGE }
+        val snippet = if (token != null) text.substring(token.start, token.end) else text.substring(start, end)
+        val source = token?.url ?: Regex("""!\[.*?]\((.*?)\)""").find(snippet)?.groupValues?.get(1) ?: return
+        val exactStart = token?.start ?: start
+        imageResize = ImageResizeState(exactStart, snippet, source)
     }
 
     /** Toque en la casilla de una tarea (la marca o desmarca) o en una imagen (cambia su tamaño). */
     fun onBodyTap(position: Offset): Boolean {
         val layout = bodyLayout ?: return false
+        if (layout.lineCount == 0) return false
+        val tappedLine = layout.getLineForVerticalPosition(position.y)
+        if (position.y < layout.getLineTop(tappedLine) || position.y > layout.getLineBottom(tappedLine)) {
+            return false
+        }
         val rendered = docCache.get(textValue.text)
         val displayLength = layout.layoutInput.text.length
+        val offset = layout.getOffsetForPosition(position)
         for (token in rendered.presentation.inlineTokens) {
             if (token.kind != InlineKind.IMAGE) continue
             val dStart = rendered.mapping.toDisplay(token.start)
             val dEnd = rendered.mapping.toDisplay(token.end)
             if (dEnd <= dStart || dEnd > displayLength) continue
-            val offset = layout.getOffsetForPosition(position)
+            val first = layout.getBoundingBox(dStart)
             val last = layout.getBoundingBox(dEnd - 1)
-            val inside = offset in dStart until dEnd ||
-                (offset == dEnd && position.x <= last.right && position.y in last.top..last.bottom)
-            if (inside) {
+            val top = minOf(first.top, last.top)
+            val bottom = maxOf(first.bottom, last.bottom)
+            val insideVertical = position.y in top..bottom
+            val insideHorizontal = if (first.top == last.top) {
+                position.x in first.left..last.right
+            } else {
+                offset in dStart until dEnd &&
+                    position.x in layout.getLineLeft(tappedLine)..layout.getLineRight(tappedLine)
+            }
+            if (insideVertical && insideHorizontal && (offset in dStart until dEnd || offset == dEnd)) {
                 openImageResize(token.start, token.end)
                 return true
             }
@@ -559,10 +582,12 @@ fun NoteEditorScreen(
     }
 
     val editorBackground = selectedColor.toEditorBackground(isDark)
-    val wordCount = remember(textValue.text) {
-        textValue.text.trim().split(Regex("\\s+")).count { it.isNotBlank() }
+    val plainBody = remember(textValue.text) { markdownPlainText(textValue.text) }
+    val wordCount = remember(plainBody) {
+        if (plainBody.isBlank()) 0
+        else plainBody.trim().split(Regex("\\s+")).size
     }
-    val charCount = textValue.text.length
+    val charCount = plainBody.length
     val readingMinutes = (wordCount + 199) / 200
     val currentFolder = remember(selectedFolderId, folders) { folders.firstOrNull { it.id == selectedFolderId } }
     val canManage = existingNote != null || dirty
@@ -795,19 +820,7 @@ fun NoteEditorScreen(
                                 updateBody(TextFieldValue(toggleTaskLine(textValue.text, lineIndex)), forceHistory = true)
                             },
                             onImageClick = { viewerImage = it },
-                            onImageLongClick = { lineIndex, _ ->
-                                val text = textValue.text
-                                var lineStart = 0
-                                var ok = true
-                                repeat(lineIndex) {
-                                    val nl = text.indexOf('\n', lineStart)
-                                    if (nl == -1) ok = false else lineStart = nl + 1
-                                }
-                                if (ok) {
-                                    val lineEnd = text.indexOf('\n', lineStart).let { if (it == -1) text.length else it }
-                                    openImageResize(lineStart, lineEnd)
-                                }
-                            }
+                            onImageLongClick = { start, end, _ -> openImageResize(start, end) }
                         )
                     }
                 } else {
@@ -922,9 +935,32 @@ fun NoteEditorScreen(
     }
 
     imageResize?.let { state ->
+        val fullModel = rememberImageModel(state.source)
         ImageSizeDialog(
             source = state.source,
             onDismiss = { imageResize = null },
+            onViewFullscreen = {
+                imageResize = null
+                if (fullModel != null) viewerImage = fullModel
+            },
+            onDelete = {
+                imageResize = null
+                val text = textValue.text
+                val start = if (text.startsWith(state.snippet, state.start)) state.start else text.indexOf(state.snippet)
+                if (start >= 0) {
+                    var removeStart = start
+                    var removeEnd = start + state.snippet.length
+                    if ((removeStart == 0 || text[removeStart - 1] == '\n') &&
+                        removeEnd < text.length && text[removeEnd] == '\n'
+                    ) {
+                        removeEnd++
+                    } else if (removeEnd == text.length && removeStart > 0 && text[removeStart - 1] == '\n') {
+                        removeStart--
+                    }
+                    val updated = text.removeRange(removeStart, removeEnd)
+                    applyEdit(TextEdit(updated, removeStart.coerceAtMost(updated.length)))
+                }
+            },
             onConfirm = { percent ->
                 imageResize = null
                 val text = textValue.text
@@ -972,6 +1008,8 @@ private data class ImageResizeState(val start: Int, val snippet: String, val sou
 private fun ImageSizeDialog(
     source: String,
     onDismiss: () -> Unit,
+    onViewFullscreen: () -> Unit,
+    onDelete: () -> Unit,
     onConfirm: (percent: Int) -> Unit
 ) {
     val model = rememberImageModel(source)
@@ -986,7 +1024,8 @@ private fun ImageSizeDialog(
                         model = model,
                         contentDescription = null,
                         widthPercent = percent,
-                        maxHeightFraction = 0.35f
+                        maxHeightFraction = 0.35f,
+                        onClick = onViewFullscreen
                     )
                 }
                 Text(
@@ -1012,6 +1051,23 @@ private fun ImageSizeDialog(
                                 fontWeight = if (percent == preset) FontWeight.Bold else FontWeight.Normal
                             )
                         }
+                    }
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    if (model != null) {
+                        TextButton(onClick = onViewFullscreen, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                            Icon(Icons.Rounded.Fullscreen, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.image_view_fullscreen))
+                        }
+                    }
+                    TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Icon(Icons.Rounded.Delete, contentDescription = null, tint = AccentRed, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.image_delete), color = AccentRed)
                     }
                 }
             }
@@ -1079,10 +1135,40 @@ private fun noteAsPlainText(title: String, content: String): String =
     listOf(title.trim(), markdownPlainText(content).trim()).filter { it.isNotEmpty() }.joinToString("\n\n")
 
 private fun shareNote(context: Context, title: String, content: String) {
-    val send = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
+    val body = noteAsPlainText(title, content)
+    val uris = AttachmentStore.referencedIds(content)
+        .mapNotNull { id ->
+            AttachmentStore.fileFor(context, id).takeIf { it.exists() && it.length() > 0L }
+        }
+        .mapNotNull { file ->
+            runCatching {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            }.getOrNull()
+        }
+    if (body.isBlank() && uris.isEmpty()) return
+
+    val send = when (uris.size) {
+        0 -> Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+        }
+        1 -> Intent(Intent.ACTION_SEND).apply {
+            type = "image/*"
+            putExtra(Intent.EXTRA_STREAM, uris.first())
+            clipData = ClipData.newRawUri(null, uris.first())
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        else -> Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = "image/*"
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+            val clip = ClipData.newRawUri(null, uris.first()).apply {
+                for (uri in uris.drop(1)) addItem(ClipData.Item(uri))
+            }
+            clipData = clip
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }.apply {
         if (title.isNotBlank()) putExtra(Intent.EXTRA_SUBJECT, title.trim())
-        putExtra(Intent.EXTRA_TEXT, noteAsPlainText(title, content))
+        if (body.isNotBlank()) putExtra(Intent.EXTRA_TEXT, body)
     }
     context.startActivity(Intent.createChooser(send, null))
 }

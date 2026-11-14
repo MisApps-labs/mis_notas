@@ -707,6 +707,7 @@ private fun NextcloudSection(
                         masterPassword,
                         {
                             isLoading = false
+                            editing = false
                             masterPassword = ""
                             successMessage = msgConnected
                         },
