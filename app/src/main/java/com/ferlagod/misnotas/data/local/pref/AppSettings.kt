@@ -25,7 +25,15 @@ data class AppSettingsState(
     /** En modo oscuro, negro puro en lugar de gris (pantallas OLED). */
     val amoled: Boolean = false,
     val autoPurgeTrash: Boolean = true,
-    val appLock: Boolean = false
+    val appLock: Boolean = false,
+    /** Copia de seguridad automática diaria en [autoBackupFolder]. */
+    val autoBackup: Boolean = false,
+    /** Carpeta elegida por el usuario (URI de árbol SAF con permiso persistente). */
+    val autoBackupFolder: String? = null,
+    /** Momento de la última copia automática correcta (0 si nunca). */
+    val lastAutoBackup: Long = 0L,
+    /** La última copia automática falló (p. ej. la carpeta ya no existe). */
+    val autoBackupFailed: Boolean = false
 )
 
 /**
@@ -46,7 +54,11 @@ class AppSettings private constructor(context: Context) {
         themeMode = enumOrDefault(prefs.getString(KEY_THEME, null), ThemeMode.SYSTEM),
         amoled = prefs.getBoolean(KEY_AMOLED, false),
         autoPurgeTrash = prefs.getBoolean(KEY_AUTO_PURGE, true),
-        appLock = prefs.getBoolean(KEY_APP_LOCK, false)
+        appLock = prefs.getBoolean(KEY_APP_LOCK, false),
+        autoBackup = prefs.getBoolean(KEY_AUTO_BACKUP, false),
+        autoBackupFolder = prefs.getString(KEY_AUTO_BACKUP_FOLDER, null),
+        lastAutoBackup = prefs.getLong(KEY_LAST_AUTO_BACKUP, 0L),
+        autoBackupFailed = prefs.getBoolean(KEY_AUTO_BACKUP_FAILED, false)
     )
 
     private fun update(block: SharedPreferences.Editor.() -> Unit) {
@@ -60,6 +72,15 @@ class AppSettings private constructor(context: Context) {
     fun setAmoled(enabled: Boolean) = update { putBoolean(KEY_AMOLED, enabled) }
     fun setAutoPurgeTrash(enabled: Boolean) = update { putBoolean(KEY_AUTO_PURGE, enabled) }
     fun setAppLock(enabled: Boolean) = update { putBoolean(KEY_APP_LOCK, enabled) }
+    fun setAutoBackup(enabled: Boolean) = update { putBoolean(KEY_AUTO_BACKUP, enabled) }
+    fun setAutoBackupFolder(uri: String?) = update {
+        putString(KEY_AUTO_BACKUP_FOLDER, uri)
+        putBoolean(KEY_AUTO_BACKUP_FAILED, false)
+    }
+    fun setAutoBackupResult(success: Boolean, time: Long = System.currentTimeMillis()) = update {
+        if (success) putLong(KEY_LAST_AUTO_BACKUP, time)
+        putBoolean(KEY_AUTO_BACKUP_FAILED, !success)
+    }
 
     companion object {
         private const val PREFS = "misnotas_settings"
@@ -69,6 +90,10 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_AMOLED = "amoled"
         private const val KEY_AUTO_PURGE = "auto_purge_trash"
         private const val KEY_APP_LOCK = "app_lock"
+        private const val KEY_AUTO_BACKUP = "auto_backup"
+        private const val KEY_AUTO_BACKUP_FOLDER = "auto_backup_folder"
+        private const val KEY_LAST_AUTO_BACKUP = "last_auto_backup"
+        private const val KEY_AUTO_BACKUP_FAILED = "auto_backup_failed"
 
         /** Días que una nota permanece en la papelera antes del vaciado automático. */
         const val TRASH_RETENTION_DAYS = 30

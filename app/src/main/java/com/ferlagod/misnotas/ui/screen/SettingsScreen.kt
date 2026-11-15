@@ -7,6 +7,8 @@ package com.ferlagod.misnotas.ui.screen
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.widthIn
 import android.net.Uri
+import android.provider.DocumentsContract
+import androidx.core.net.toUri
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +41,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.AutoDelete
+import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Contrast
@@ -111,6 +115,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ferlagod.misnotas.BuildConfig
 import com.ferlagod.misnotas.R
+import com.ferlagod.misnotas.data.backup.BackupManager
 import com.ferlagod.misnotas.data.local.pref.AppSettings
 import com.ferlagod.misnotas.data.local.pref.AppSettingsState
 import com.ferlagod.misnotas.data.local.pref.NextcloudCredentials
@@ -147,6 +152,8 @@ fun SettingsScreen(
     onAppLockChange: (Boolean) -> Unit,
     onExport: (Uri) -> Unit,
     onImport: (List<Uri>) -> Unit,
+    onAutoBackupChange: (Boolean) -> Unit,
+    onAutoBackupFolderSelected: (Uri) -> Unit,
     currentLanguage: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit
 ) {
@@ -157,6 +164,9 @@ fun SettingsScreen(
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         onImport(uris)
+    }
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) onAutoBackupFolderSelected(uri)
     }
 
     Scaffold(
@@ -311,6 +321,39 @@ fun SettingsScreen(
                         }
                     }
                 }
+                Divider()
+                SwitchRow(
+                    icon = Icons.Rounded.Backup,
+                    title = stringResource(R.string.auto_backup),
+                    subtitle = autoBackupStatus(settings),
+                    checked = settings.autoBackup && settings.autoBackupFolder != null,
+                    onCheckedChange = { enabled ->
+                        // Sin carpeta elegida, activar la opción abre primero el selector.
+                        if (enabled && settings.autoBackupFolder == null) folderLauncher.launch(null)
+                        else onAutoBackupChange(enabled)
+                    }
+                )
+                Divider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(selected = false, role = Role.Button, onClick = { folderLauncher.launch(null) })
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SettingIcon(Icons.Rounded.FolderOpen)
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.auto_backup_folder), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text(
+                            settings.autoBackupFolder?.let { folderLabel(it) } ?: stringResource(R.string.auto_backup_folder_none),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
 
             // --- Sincronización ---
@@ -342,6 +385,26 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
+
+@Composable
+private fun autoBackupStatus(settings: AppSettingsState): String {
+    val base = pluralStringResource(R.plurals.auto_backup_desc, BackupManager.AUTO_BACKUP_KEEP, BackupManager.AUTO_BACKUP_KEEP)
+    val status = when {
+        settings.autoBackupFailed -> stringResource(R.string.auto_backup_failed)
+        settings.lastAutoBackup > 0 -> stringResource(R.string.auto_backup_last, formatSyncTime(settings.lastAutoBackup))
+        else -> null
+    }
+    return if (status == null) base else "$base\n$status"
+}
+
+/** Ruta legible de una carpeta SAF ("primary:Documents/Copias" → "Documents/Copias"). */
+private fun folderLabel(treeUri: String): String = try {
+    val docId = DocumentsContract.getTreeDocumentId(treeUri.toUri())
+    val path = docId.substringAfter(':', docId)
+    path.ifBlank { docId.substringBefore(':') }
+} catch (_: Exception) {
+    treeUri
 }
 
 private fun backupFileName(): String =

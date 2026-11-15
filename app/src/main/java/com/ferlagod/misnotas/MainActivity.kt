@@ -386,6 +386,8 @@ private fun AppNavigationHost(
                 onAppLockChange = onAppLockChange,
                 onExport = viewModel::exportBackup,
                 onImport = viewModel::importBackup,
+                onAutoBackupChange = viewModel::setAutoBackup,
+                onAutoBackupFolderSelected = viewModel::setAutoBackupFolder,
                 currentLanguage = currentLanguage,
                 onLanguageSelected = onLanguageSelected
             )

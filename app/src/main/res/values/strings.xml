@@ -236,6 +236,15 @@
     <string name="export_notes">Export</string>
     <string name="import_notes">Import</string>
     <string name="backup_in_progress">Working…</string>
+    <string name="auto_backup">Automatic daily backup</string>
+    <plurals name="auto_backup_desc">
+        <item quantity="one">Every 24 h in the chosen folder. Only the latest %d copy is kept.</item>
+        <item quantity="other">Every 24 h in the chosen folder. Only the latest %d copies are kept.</item>
+    </plurals>
+    <string name="auto_backup_last">Last backup: %1$s</string>
+    <string name="auto_backup_failed">The last backup failed. Choose the folder again.</string>
+    <string name="auto_backup_folder">Backup folder</string>
+    <string name="auto_backup_folder_none">Not selected</string>
     <string name="section_sync">Nextcloud sync</string>
     <string name="edit_account">Change account or master password</string>
     <string name="search_everywhere_hint">Search all notes</string>

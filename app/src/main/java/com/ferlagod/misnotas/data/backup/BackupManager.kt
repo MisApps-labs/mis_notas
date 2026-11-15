@@ -8,6 +8,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -109,6 +110,53 @@ class BackupManager(context: Context) {
                 throw e
             }
             file.absolutePath
+        }
+    }
+
+    /**
+     * Copia automática en la carpeta [treeUri] elegida por el usuario (ACTION_OPEN_DOCUMENT_TREE).
+     * Tras escribir la nueva copia se borran las más antiguas para conservar solo
+     * [AUTO_BACKUP_KEEP]. Sin notas no se crea nada (así una base vacía no desplaza a copias buenas).
+     *
+     * @return el número de notas copiadas, o null si no había nada que copiar.
+     */
+    suspend fun exportAutoBackup(treeUri: Uri, untitled: String): Int? = withContext(Dispatchers.IO) {
+        if (noteDao.countLive() == 0) return@withContext null
+        val resolver = appContext.contentResolver
+        val treeDocId = DocumentsContract.getTreeDocumentId(treeUri)
+        val parent = DocumentsContract.buildDocumentUriUsingTree(treeUri, treeDocId)
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
+        val doc = DocumentsContract.createDocument(resolver, parent, "application/zip", "$AUTO_BACKUP_PREFIX$stamp.zip")
+            ?: throw IOException("Cannot create backup in $treeUri")
+        val count = try {
+            writeZip(resolver.openOutputStream(doc) ?: throw IOException("Cannot open $doc"), untitled)
+        } catch (e: Exception) {
+            runCatching { DocumentsContract.deleteDocument(resolver, doc) }
+            throw e
+        }
+        pruneAutoBackups(treeUri, treeDocId)
+        count
+    }
+
+    /** Deja solo las [AUTO_BACKUP_KEEP] copias automáticas más recientes de la carpeta. */
+    private fun pruneAutoBackups(treeUri: Uri, treeDocId: String) {
+        val resolver = appContext.contentResolver
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, treeDocId)
+        val backups = ArrayList<Pair<String, String>>() // nombre → id de documento
+        resolver.query(
+            children,
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null, null, null
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val id = c.getString(0) ?: continue
+                val name = c.getString(1) ?: continue
+                if (name.startsWith(AUTO_BACKUP_PREFIX)) backups += name to id
+            }
+        }
+        // La marca de tiempo del nombre (yyyyMMdd-HHmmss) ordena cronológicamente.
+        backups.sortedByDescending { it.first }.drop(AUTO_BACKUP_KEEP).forEach { (_, id) ->
+            runCatching { DocumentsContract.deleteDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, id)) }
         }
     }
 
@@ -334,6 +382,8 @@ class BackupManager(context: Context) {
     companion object {
         const val ATTACHMENTS_DIR = "attachments"
         private const val SAFETY_DIR = "MisNotas"
+        const val AUTO_BACKUP_PREFIX = "MisNotas-auto-"
+        const val AUTO_BACKUP_KEEP = 3
         private const val MAX_NOTE_BYTES = 10L * 1024 * 1024
         private const val MAX_ENTRY_BYTES = 30L * 1024 * 1024
         private const val MAX_ZIP_BYTES = 500L * 1024 * 1024

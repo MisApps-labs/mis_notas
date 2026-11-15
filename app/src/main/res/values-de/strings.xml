@@ -235,6 +235,15 @@
     <string name="export_notes">Exportieren</string>
     <string name="import_notes">Importieren</string>
     <string name="backup_in_progress">Wird verarbeitet…</string>
+    <string name="auto_backup">Automatische tägliche Sicherung</string>
+    <plurals name="auto_backup_desc">
+        <item quantity="one">Alle 24 Std. im gewählten Ordner. Nur %d Sicherung, die letzte, wird behalten.</item>
+        <item quantity="other">Alle 24 Std. im gewählten Ordner. Nur die letzten %d Sicherungen werden behalten.</item>
+    </plurals>
+    <string name="auto_backup_last">Letzte Sicherung: %1$s</string>
+    <string name="auto_backup_failed">Die letzte Sicherung ist fehlgeschlagen. Wähle den Ordner erneut.</string>
+    <string name="auto_backup_folder">Sicherungsordner</string>
+    <string name="auto_backup_folder_none">Nicht ausgewählt</string>
     <string name="section_sync">Nextcloud-Synchronisierung</string>
     <string name="edit_account">Konto oder Master-Passwort ändern</string>
     <string name="search_everywhere_hint">Alle Notizen durchsuchen</string>

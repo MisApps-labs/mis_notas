@@ -5,8 +5,10 @@
 package com.ferlagod.misnotas.ui.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import androidx.annotation.StringRes
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -30,6 +32,7 @@ import com.ferlagod.misnotas.data.sync.SyncMerger
 import com.ferlagod.misnotas.data.sync.SyncRepository
 import com.ferlagod.misnotas.data.sync.SyncState
 import com.ferlagod.misnotas.data.sync.SyncWorker
+import com.ferlagod.misnotas.data.backup.AutoBackupWorker
 import com.ferlagod.misnotas.ui.markdown.markdownPlainText
 import com.ferlagod.misnotas.ui.markdown.markdownPreview
 import com.ferlagod.misnotas.ui.theme.NoteColor
@@ -218,6 +221,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
+        }
+        if (settings.value.autoBackup && settings.value.autoBackupFolder != null) {
+            AutoBackupWorker.schedule(application)
         }
         if (_isConfigured.value && _isUnlocked.value) {
             SyncWorker.schedule(application)
@@ -733,6 +739,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _events.trySend(UiEvent.Message(message))
             if (result.notes > 0) triggerSync()
         }
+    }
+
+    /** Activa o desactiva la copia automática diaria (requiere haber elegido carpeta). */
+    fun setAutoBackup(enabled: Boolean) {
+        val canEnable = enabled && settings.value.autoBackupFolder != null
+        appSettings.setAutoBackup(canEnable)
+        if (canEnable) AutoBackupWorker.schedule(getApplication(), replace = true)
+        else AutoBackupWorker.cancel(getApplication())
+    }
+
+    /**
+     * Guarda la carpeta elegida con ACTION_OPEN_DOCUMENT_TREE (con permiso persistente, para
+     * poder escribir en segundo plano), activa la copia automática y hace la primera enseguida.
+     */
+    fun setAutoBackupFolder(uri: Uri) {
+        val resolver = getApplication<Application>().contentResolver
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        try {
+            resolver.takePersistableUriPermission(uri, flags)
+        } catch (e: SecurityException) {
+            _events.trySend(UiEvent.Message(text(R.string.backup_failed, e.localizedMessage ?: e.javaClass.simpleName)))
+            return
+        }
+        val previous = settings.value.autoBackupFolder
+        if (previous != null && previous != uri.toString()) {
+            runCatching { resolver.releasePersistableUriPermission(previous.toUri(), flags) }
+        }
+        appSettings.setAutoBackupFolder(uri.toString())
+        setAutoBackup(true)
     }
 
     private fun runBusy(block: suspend () -> Unit) {

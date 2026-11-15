@@ -240,6 +240,16 @@
     <string name="export_notes">Esporta</string>
     <string name="import_notes">Importa</string>
     <string name="backup_in_progress">Elaborazione…</string>
+    <string name="auto_backup">Backup automatico giornaliero</string>
+    <plurals name="auto_backup_desc">
+        <item quantity="one">Ogni 24 ore nella cartella scelta. Viene conservata solo %d copia, la più recente.</item>
+        <item quantity="other">Ogni 24 ore nella cartella scelta. Vengono conservate solo le %d copie più recenti.</item>
+        <item quantity="many">Ogni 24 ore nella cartella scelta. Vengono conservate solo le %d copie più recenti.</item>
+    </plurals>
+    <string name="auto_backup_last">Ultimo backup: %1$s</string>
+    <string name="auto_backup_failed">L\'ultimo backup non è riuscito. Scegli di nuovo la cartella.</string>
+    <string name="auto_backup_folder">Cartella dei backup</string>
+    <string name="auto_backup_folder_none">Non selezionata</string>
     <string name="section_sync">Sincronizzazione Nextcloud</string>
     <string name="edit_account">Cambia account o password principale</string>
     <string name="search_everywhere_hint">Cerca in tutte le note</string>
