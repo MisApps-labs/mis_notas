@@ -1,11 +1,5 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 ferlagod
-# Mis Notas — https://github.com/ferlagod/mis_notas
-#
-# Borrador de la receta para fdroiddata (https://gitlab.com/fdroid/fdroiddata).
-# Los textos, el icono y las capturas se leen de fastlane/metadata/android/ en el repositorio.
-
 Categories:
+  - Note
   - Writing
 License: GPL-3.0-or-later
 AuthorName: ferlagod
@@ -17,23 +11,20 @@ AutoName: Mis Notas
 
 RepoType: git
 Repo: https://github.com/ferlagod/mis_notas.git
+Binaries: https://github.com/ferlagod/mis_notas/releases/download/%v/MisNotas_%v.apk
 
 Builds:
   - versionName: 1.0.0
-    versionCode: 2
-    commit: v1.0.0
+    versionCode: 10
+    commit: 367af87df114e8de543f2908526398c641b3615c
     subdir: app
-    sudo:
-      # gradle/gradle-daemon-jvm.properties exige JDK 21 para el demonio de Gradle;
-      # se instala aquí para que Gradle no intente descargarlo de foojay.io.
-      - echo "deb https://deb.debian.org/debian trixie main" > /etc/apt/sources.list.d/trixie.list
-      - apt-get update
-      - apt-get install -y -t trixie openjdk-21-jdk-headless
-      - update-alternatives --auto java
     gradle:
       - yes
+    prebuild: sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+
+AllowedAPKSigningKeys: d7065f49ab99ad93e018381f908805844e22dd87e09c5e958ce69d800bd4c6dc
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
 CurrentVersion: 1.0.0
-CurrentVersionCode: 2
+CurrentVersionCode: 10
