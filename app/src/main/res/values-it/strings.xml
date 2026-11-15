@@ -35,6 +35,7 @@
     <string name="folder_color">Colore</string>
     <string name="parent_folder">Cartella superiore (facoltativa)</string>
     <string name="parent_none">Nessuna (livello principale)</string>
+    <string name="drop_to_top_level">Rilascia qui: livello principale</string>
     <string name="delete_folder_title">Eliminare la cartella?</string>
     <string name="delete_folder_message">La cartella «%1$s» verrà eliminata. Le note che contiene non verranno eliminate e resteranno in «Tutte le note».</string>
     <string name="login_subtitle_unlock">Inserisci la password principale per decifrare le tue note</string>

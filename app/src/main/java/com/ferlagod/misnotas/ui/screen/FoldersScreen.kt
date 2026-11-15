@@ -15,6 +15,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -75,14 +77,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -99,6 +108,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.ferlagod.misnotas.R
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
@@ -149,6 +159,49 @@ fun FoldersScreen(
 
     val tree = remember(folders) { FolderTree.flatten(folders) }
     val countByFolder = remember(notes) { notes.groupingBy { it.folderId }.eachCount() }
+
+    // Arrastrar una carpeta (tras mantenerla pulsada) sobre otra la mete dentro; sobre la
+    // cabecera "Mis carpetas", la sube al nivel principal.
+    val haptics = LocalHapticFeedback.current
+    val currentFolders by rememberUpdatedState(folders)
+    val currentOnUpdateFolder by rememberUpdatedState(onUpdateFolder)
+    var dragFolderId by remember { mutableStateOf<String?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var dragPointerY by remember { mutableFloatStateOf(0f) }
+    /** Id de la carpeta destino, [FOLDERS_HEADER_KEY] para el nivel principal o null si no hay destino válido. */
+    var dropTargetKey by remember { mutableStateOf<String?>(null) }
+    val draggedFolder = dragFolderId?.let { id -> folders.firstOrNull { it.id == id } }
+
+    fun canDropInto(targetId: String?): Boolean {
+        val dragged = currentFolders.firstOrNull { it.id == dragFolderId } ?: return false
+        if (targetId == dragged.parentId) return false
+        if (FolderTree.wouldCreateCycle(currentFolders, dragged.id, targetId)) return false
+        // Dos carpetas hermanas no pueden llamarse igual.
+        return currentFolders.none { it.id != dragged.id && it.parentId == targetId && it.name.equals(dragged.name, ignoreCase = true) }
+    }
+
+    fun dropTargetAt(y: Float): String? {
+        val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: return null
+        val key = item.key as? String ?: return null
+        return when {
+            key == FOLDERS_HEADER_KEY -> key.takeIf { canDropInto(null) }
+            currentFolders.any { it.id == key } -> key.takeIf { canDropInto(key) }
+            else -> null
+        }
+    }
+
+    fun finishDrag(drop: Boolean) {
+        val dragged = currentFolders.firstOrNull { it.id == dragFolderId }
+        val target = dropTargetKey
+        if (drop && dragged != null && target != null) {
+            val parentId = if (target == FOLDERS_HEADER_KEY) null else target
+            currentOnUpdateFolder(dragged.id, dragged.name, NoteColor.fromKey(dragged.color), parentId)
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        dragFolderId = null
+        dropTargetKey = null
+        dragOffsetY = 0f
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -247,16 +300,37 @@ fun FoldersScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                item(key = "folders_header") {
+                item(key = FOLDERS_HEADER_KEY) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         GroupLabel(stringResource(R.string.my_folders), modifier = Modifier.weight(1f))
-                        TextButton(onClick = {
-                            parentForNewFolder = null
-                            showCreateFolderDialog = true
-                        }) {
-                            Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.new_folder), fontWeight = FontWeight.SemiBold)
+                        if (draggedFolder?.parentId != null) {
+                            // Mientras se arrastra una subcarpeta, la cabecera es el destino "nivel principal".
+                            val active = dropTargetKey == FOLDERS_HEADER_KEY
+                            Box(
+                                modifier = Modifier
+                                    .heightIn(min = 40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(primary.copy(alpha = if (active) 0.22f else 0.08f))
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.drop_to_top_level),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        } else {
+                            TextButton(onClick = {
+                                parentForNewFolder = null
+                                showCreateFolderDialog = true
+                            }) {
+                                Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(stringResource(R.string.new_folder), fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
@@ -294,12 +368,49 @@ fun FoldersScreen(
                             index == tree.lastIndex -> RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
                             else -> RoundedCornerShape(0.dp)
                         }
+                        val isDragged = folder.id == dragFolderId
+                        val isDropTarget = folder.id == dropTargetKey
+                        val surface = MaterialTheme.colorScheme.surface
                         Surface(
-                            shape = shape,
-                            color = MaterialTheme.colorScheme.surface,
+                            shape = if (isDragged || isDropTarget) RoundedCornerShape(14.dp) else shape,
+                            color = if (isDropTarget) primary.copy(alpha = 0.16f).compositeOver(surface) else surface,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .animateItem()
+                                .zIndex(if (isDragged) 1f else 0f)
+                                .pointerInput(folder.id) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { start ->
+                                            val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == folder.id }
+                                            if (info != null) {
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                dragFolderId = folder.id
+                                                dragOffsetY = 0f
+                                                dragPointerY = info.offset + start.y
+                                                dropTargetKey = null
+                                            }
+                                        },
+                                        onDrag = { change, amount ->
+                                            if (dragFolderId == folder.id) {
+                                                change.consume()
+                                                dragOffsetY += amount.y
+                                                dragPointerY += amount.y
+                                                dropTargetKey = dropTargetAt(dragPointerY)
+                                            }
+                                        },
+                                        onDragEnd = { finishDrag(drop = true) },
+                                        onDragCancel = { finishDrag(drop = false) }
+                                    )
+                                }
+                                .graphicsLayer {
+                                    if (isDragged) {
+                                        translationY = dragOffsetY
+                                        shadowElevation = 8.dp.toPx()
+                                        scaleX = 1.02f
+                                        scaleY = 1.02f
+                                        alpha = 0.95f
+                                    }
+                                }
                         ) {
                             Column {
                                 FolderRow(
@@ -317,7 +428,7 @@ fun FoldersScreen(
                                     onEdit = { folderToEdit = folder },
                                     onDelete = { folderToDelete = folder }
                                 )
-                                if (index < tree.lastIndex) RowDivider(start = (58 + level * 18).dp)
+                                if (index < tree.lastIndex && !isDragged && !isDropTarget) RowDivider(start = (58 + level * 18).dp)
                             }
                         }
                     }
@@ -802,3 +913,6 @@ private fun FolderDialog(
         )
     }
 }
+
+/** Clave de la cabecera "Mis carpetas"; al soltar una carpeta ahí pasa al nivel principal. */
+private const val FOLDERS_HEADER_KEY = "folders_header"

@@ -35,6 +35,7 @@
     <string name="folder_color">Farbe</string>
     <string name="parent_folder">Übergeordneter Ordner (optional)</string>
     <string name="parent_none">Keiner (oberste Ebene)</string>
+    <string name="drop_to_top_level">Hier ablegen: oberste Ebene</string>
     <string name="delete_folder_title">Ordner löschen?</string>
     <string name="delete_folder_message">Der Ordner „%1$s“ wird gelöscht. Seine Notizen bleiben erhalten und erscheinen unter „Alle Notizen“.</string>
     <string name="login_subtitle_unlock">Gib dein Master-Passwort ein, um deine Notizen zu entschlüsseln</string>

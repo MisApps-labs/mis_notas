@@ -36,6 +36,7 @@
     <string name="folder_color">Color</string>
     <string name="parent_folder">Parent folder (optional)</string>
     <string name="parent_none">None (top level)</string>
+    <string name="drop_to_top_level">Drop here for top level</string>
     <string name="delete_folder_title">Delete folder?</string>
     <string name="delete_folder_message">The folder “%1$s” will be deleted. Its notes won’t be deleted and will stay in “All notes”.</string>
     <string name="login_subtitle_unlock">Enter your master password to decrypt your notes</string>

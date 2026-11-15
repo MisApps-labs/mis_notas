@@ -5,9 +5,11 @@
 package com.ferlagod.misnotas.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.ferlagod.misnotas.R
@@ -20,18 +22,29 @@ import com.ferlagod.misnotas.R
  */
 
 val OutfitFontFamily = FontFamily(
-    Font(R.font.outfit, weight = FontWeight.Normal),
-    Font(R.font.outfit, weight = FontWeight.Medium),
-    Font(R.font.outfit, weight = FontWeight.SemiBold),
-    Font(R.font.outfit, weight = FontWeight.Bold),
-    Font(R.font.outfit, weight = FontWeight.ExtraBold)
+    variableFont(R.font.outfit, FontWeight.Normal),
+    variableFont(R.font.outfit, FontWeight.Medium),
+    variableFont(R.font.outfit, FontWeight.SemiBold),
+    variableFont(R.font.outfit, FontWeight.Bold),
+    variableFont(R.font.outfit, FontWeight.ExtraBold)
 )
 
 val InterFontFamily = FontFamily(
-    Font(R.font.inter, weight = FontWeight.Normal),
-    Font(R.font.inter, weight = FontWeight.Medium),
-    Font(R.font.inter, weight = FontWeight.SemiBold),
-    Font(R.font.inter, weight = FontWeight.Bold)
+    variableFont(R.font.inter, FontWeight.Normal),
+    variableFont(R.font.inter, FontWeight.Medium),
+    variableFont(R.font.inter, FontWeight.SemiBold),
+    variableFont(R.font.inter, FontWeight.Bold)
+)
+
+/**
+ * Los ficheros son fuentes variables: sin fijar el eje "wght" todas las variantes se pintarían
+ * con el peso por defecto (normal) y la negrita no se vería.
+ */
+@OptIn(ExperimentalTextApi::class)
+private fun variableFont(resId: Int, weight: FontWeight) = Font(
+    resId = resId,
+    weight = weight,
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight))
 )
 
 val Typography = Typography(

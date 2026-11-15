@@ -35,6 +35,7 @@
     <string name="folder_color">Color distintivo</string>
     <string name="parent_folder">Carpeta contenedora (opcional)</string>
     <string name="parent_none">Ninguna (nivel principal)</string>
+    <string name="drop_to_top_level">Suelta aquí: nivel principal</string>
     <string name="delete_folder_title">¿Eliminar carpeta?</string>
     <string name="delete_folder_message">Se eliminará la carpeta «%1$s». Las notas que contiene no se borrarán y permanecerán en «Todas las notas».</string>
     <string name="login_subtitle_unlock">Introduce tu contraseña maestra para descifrar tus notas</string>

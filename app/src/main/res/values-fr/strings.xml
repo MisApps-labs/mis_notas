@@ -35,6 +35,7 @@
     <string name="folder_color">Couleur</string>
     <string name="parent_folder">Dossier parent (facultatif)</string>
     <string name="parent_none">Aucun (niveau principal)</string>
+    <string name="drop_to_top_level">Déposer ici : niveau principal</string>
     <string name="delete_folder_title">Supprimer le dossier ?</string>
     <string name="delete_folder_message">Le dossier « %1$s » sera supprimé. Ses notes ne seront pas supprimées et resteront dans « Toutes les notes ».</string>
     <string name="login_subtitle_unlock">Saisissez votre mot de passe principal pour déchiffrer vos notes</string>
