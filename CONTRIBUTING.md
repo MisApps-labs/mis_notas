@@ -27,7 +27,7 @@ Al contribuir aceptas que tu código se publique bajo la licencia **GPL v3 o pos
 - Kotlin con el estilo oficial (`kotlin.code.style=official`).
 - Comentarios del código en español.
 - Ningún texto visible escrito en el código: todo va en `strings.xml`. Si añades un texto, añádelo en **los cinco** idiomas (`values/` es inglés, más `values-es`, `values-fr`, `values-de` y `values-it`). Lint falla si falta alguna traducción.
-- Nada de dependencias propietarias ni servicios de Google Play: la app debe poder publicarse en F-Droid.
+- Nada de dependencias propietarias, servicios de Google (Play Services, Firebase) ni rastreadores.
 
 ## Traducciones
 
@@ -38,6 +38,7 @@ Al contribuir aceptas que tu código se publique bajo la licencia **GPL v3 o pos
 ## Publicar una versión
 
 1. Actualiza `versionCode` y `versionName` en `app/build.gradle.kts` y añade la entrada en [CHANGELOG.md](CHANGELOG.md).
+   Añade también las novedades de la ficha de la tienda en `fastlane/metadata/android/<idioma>/changelogs/<versionCode>.txt` (máx. 500 caracteres).
 2. Crea y sube una etiqueta: `git tag v1.0.0 && git push origin v1.0.0`.
 3. El flujo `release.yml` compila el APK, lo firma y crea un *release* en GitHub con el APK adjunto.
 
@@ -51,19 +52,3 @@ Para que el flujo firme el APK, añade estos *secrets* en **Settings → Secrets
 | `KEY_PASSWORD` | Contraseña de la clave |
 
 Sin esos *secrets*, el flujo publica un APK **sin firmar**, que Android no deja instalar.
-
-## Publicar en F-Droid
-
-El repositorio ya incluye lo que F-Droid necesita:
-
-- **Licencia**: GPL-3.0-or-later. El texto completo está en [LICENSE](LICENSE) y cada fichero de código y recursos lleva su cabecera `SPDX-License-Identifier`. La app muestra el aviso legal en **Ajustes → Acerca de**.
-- **Solo dependencias libres**: nada de Google Play Services, Firebase ni rastreadores. El bloque de dependencias cifrado de Google está desactivado (`dependenciesInfo`).
-- **Ficha de la tienda** en `fastlane/metadata/android/<idioma>/`: título, descripciones, icono, gráfico destacado y novedades por `versionCode` (`changelogs/<versionCode>.txt`). Las capturas van en `images/phoneScreenshots/` (1.png, 2.png…).
-- **Borrador de la receta** en [`fdroid/metadata/com.ferlagod.misnotas.yml`](fdroid/metadata/com.ferlagod.misnotas.yml).
-
-Pasos:
-
-1. Asegúrate de que la etiqueta `vX.Y.Z` apunta al commit que quieres publicar y súbela (`git push origin vX.Y.Z`).
-2. Añade `fastlane/metadata/android/*/changelogs/<versionCode>.txt` para cada versión nueva (máx. 500 caracteres).
-3. Haz un *fork* de [fdroiddata](https://gitlab.com/fdroid/fdroiddata), copia la receta en `metadata/com.ferlagod.misnotas.yml` y compruébala con `fdroid lint com.ferlagod.misnotas` y `fdroid build -v -l com.ferlagod.misnotas`.
-4. Abre un *merge request* en fdroiddata. Con `UpdateCheckMode: Tags`, las versiones siguientes se detectan solas al subir nuevas etiquetas.

@@ -77,11 +77,6 @@ android {
             enableSplit = false
         }
     }
-    dependenciesInfo {
-        // Sin bloque de dependencias cifrado por Google (requisito para F-Droid / builds reproducibles).
-        includeInApk = false
-        includeInBundle = false
-    }
 }
 
 ksp {
