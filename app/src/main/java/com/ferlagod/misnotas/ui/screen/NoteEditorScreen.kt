@@ -285,7 +285,8 @@ fun NoteEditorScreen(
     // Tras el primer guardado de una nota nueva ya se puede borrar, duplicar, etc.
     var dirty by remember { mutableStateOf(false) }
 
-    var isReadingMode by rememberSaveable { mutableStateOf(false) }
+    // Las notas existentes se abren en modo lectura; las nuevas, directamente para escribir.
+    var isReadingMode by rememberSaveable { mutableStateOf(!isNewNote) }
     var showFolderPicker by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
