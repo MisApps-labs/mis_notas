@@ -16,7 +16,14 @@
 
 ---
 
-Mis Notas combina el aspecto limpio de Apple Notas y Google Keep con la organización por carpetas y el Markdown de apps como Joplin o Notesnook. Tus notas viven en el teléfono, y si quieres se sincronizan **cifradas** con tu servidor Nextcloud: el servidor solo guarda datos ilegibles.
+Mis Notas combina un diseño limpio con la organización por carpetas y el Markdown de apps como Joplin o Notesnook. Tus notas viven en el teléfono, y si quieres se sincronizan **cifradas** con tu servidor Nextcloud: el servidor solo guarda datos ilegibles.
+
+## Otras plataformas
+
+Además de esta aplicación para Android, puedes acceder a tus notas sincronizadas en otros dispositivos utilizando:
+
+- 🖥️ **[App para escritorio](https://github.com/ferlagod/mis_notas_desktop)** (Windows, macOS, Linux).
+- 🌐 **[Extensión para el navegador](https://github.com/ferlagod/mis_notas_extensiones)** (Chromium y Firefox).
 
 ## Capturas
 
@@ -144,7 +151,6 @@ app/src/main/res/values*/strings.xml   Textos (inglés por defecto; es, fr, de, 
 - Todavía no se puede **cambiar la contraseña maestra** de una cuenta existente.
 - Las imágenes que ya no usa ninguna nota se borran del teléfono, pero **no del servidor**.
 - Solo admite imágenes como adjuntos.
-- Por ahora solo hay app para Android.
 
 ¿Ideas o fallos? Abre una [incidencia](https://github.com/ferlagod/mis_notas/issues).
 
