@@ -61,6 +61,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
+import com.ferlagod.misnotas.data.local.pref.Hints
 import com.ferlagod.misnotas.data.local.pref.ThemeMode
 import com.ferlagod.misnotas.ui.screen.AppLockScreen
 import com.ferlagod.misnotas.ui.screen.FoldersScreen
@@ -360,7 +361,9 @@ private fun AppNavigationHost(
                 onDeleteFolder = viewModel::deleteFolder,
                 onTriggerSync = viewModel::triggerSync,
                 onLockApp = viewModel::lock,
-                onOpenSettings = { navController.navigate(AppDestinations.SETTINGS) }
+                onOpenSettings = { navController.navigate(AppDestinations.SETTINGS) },
+                showLocalModeHint = settings.showHint(Hints.LOCAL_MODE),
+                onDismissLocalModeHint = { viewModel.dismissHint(Hints.LOCAL_MODE) }
             )
         }
 
@@ -448,6 +451,8 @@ private fun AppNavigationHost(
                             autoPurgeTrash = settings.autoPurgeTrash,
                             snackbarHostState = snackbarHostState,
                             activeNoteId = if (twoPane) paneNoteId else null,
+                            showMultiSelectHint = settings.showHint(Hints.MULTI_SELECT),
+                            onDismissMultiSelectHint = { viewModel.dismissHint(Hints.MULTI_SELECT) },
                             actions = NotesActions(
                                 onSearchQueryChange = viewModel::setSearchQuery,
                                 onToggleLayout = viewModel::toggleLayoutMode,
@@ -589,6 +594,7 @@ private fun EditorHost(
     onOpenNote: (String) -> Unit,
     isNewNote: Boolean = noteId == null
 ) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     // Se lee una sola vez de la base de datos (incluye notas en papelera).
     var existingNote by remember(noteId) { mutableStateOf<NoteEntity?>(null) }
     var noteLoaded by remember(noteId) { mutableStateOf(noteId == null) }
@@ -632,6 +638,8 @@ private fun EditorHost(
         onDeleteNote = viewModel::deleteNote,
         onDuplicateNote = viewModel::duplicateNote,
         onOpenNote = onOpenNote,
-        onAddImage = viewModel::addImageAttachment
+        onAddImage = viewModel::addImageAttachment,
+        showReadModeHint = settings.showHint(Hints.READ_MODE),
+        onDismissReadModeHint = { viewModel.dismissHint(Hints.READ_MODE) }
     )
 }

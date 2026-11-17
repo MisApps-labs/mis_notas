@@ -132,6 +132,7 @@ import com.ferlagod.misnotas.R
 import com.ferlagod.misnotas.data.attachment.AttachmentStore
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
+import com.ferlagod.misnotas.ui.components.HintCard
 import com.ferlagod.misnotas.ui.components.ColorPalette
 import com.ferlagod.misnotas.ui.components.FolderPickerDialog
 import com.ferlagod.misnotas.ui.components.ZoomableImageDialog
@@ -258,7 +259,10 @@ fun NoteEditorScreen(
     onBaseLoaded: (id: String, title: String, content: String, folderId: String?, color: NoteColor, isPinned: Boolean) -> Unit =
         { _, _, _, _, _, _ -> },
     /** Nota recién creada (con id ya asignado o sin él): el cursor va directo al texto. */
-    isNewNote: Boolean = noteId == null
+    isNewNote: Boolean = noteId == null,
+    /** Mostrar (una sola vez) el aviso de que las notas se abren en modo lectura. */
+    showReadModeHint: Boolean = false,
+    onDismissReadModeHint: () -> Unit = {}
 ) {
     val isDark = isAppInDarkTheme()
     val primary = MaterialTheme.colorScheme.primary
@@ -619,7 +623,11 @@ fun NoteEditorScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { isReadingMode = !isReadingMode }) {
+                    IconButton(onClick = {
+                        // Quien ya usa el lápiz ha aprendido lo que explica el aviso.
+                        if (isReadingMode) onDismissReadModeHint()
+                        isReadingMode = !isReadingMode
+                    }) {
                         Icon(
                             imageVector = if (isReadingMode) Icons.Rounded.Edit else Icons.Rounded.Visibility,
                             contentDescription = if (isReadingMode) stringResource(R.string.cd_edit_mode) else stringResource(R.string.cd_read_mode),
@@ -800,6 +808,15 @@ fun NoteEditorScreen(
             )
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            AnimatedVisibility(visible = isReadingMode && showReadModeHint && textValue.text.isNotBlank()) {
+                HintCard(
+                    text = stringResource(R.string.hint_read_mode),
+                    icon = Icons.Rounded.Visibility,
+                    onDismiss = onDismissReadModeHint,
+                    modifier = Modifier.padding(bottom = 14.dp)
+                )
+            }
 
             Crossfade(targetState = isReadingMode, label = "editor_mode_crossfade") { reading ->
                 if (reading) {

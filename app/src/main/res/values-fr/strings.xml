@@ -305,4 +305,11 @@
     <string name="image_view_fullscreen">Voir en plein écran</string>
     <string name="image_delete">Supprimer l’image</string>
     <string name="folder_duplicate_error">Un dossier portant ce nom existe déjà à cet emplacement</string>
+    <string name="hint_dismiss">Compris</string>
+    <string name="hint_read_mode">Les notes s’ouvrent en mode lecture pour éviter de les modifier par erreur. Touchez ✏️ pour les modifier.</string>
+    <string name="hint_multi_select">Appuyez longuement sur une note pour en sélectionner plusieurs et les déplacer, épingler, colorer ou supprimer ensemble.</string>
+    <string name="hint_local_mode">Vos notes sont uniquement enregistrées sur cet appareil. Connectez Nextcloud pour les synchroniser avec un chiffrement de bout en bout, ou activez la sauvegarde automatique.</string>
+    <string name="hint_local_mode_action">Ouvrir les réglages</string>
+    <string name="welcome_note_title">Bienvenue dans Mis Notas</string>
+    <string name="welcome_note_body">Cette note est une courte visite de l’application. Modifiez-la, entraînez-vous avec, ou supprimez-la quand vous voulez.\n\n## L’essentiel\n- Touchez **+** pour créer une note.\n- Les notes s’ouvrent en **mode lecture** : touchez ✏️ pour les modifier.\n- Appuyez longuement sur une note pour en **sélectionner plusieurs** et les déplacer, épingler, colorer ou supprimer.\n- Appuyez longuement sur un dossier et faites-le glisser pour le placer dans un autre.\n- Les notes supprimées vont dans la **corbeille**, où elles sont conservées %1$d jours.\n\n## Mise en forme\nÉcrivez en Markdown ou utilisez la barre d’outils de l’éditeur : **gras**, *italique*, ~~barré~~ et `code`.\n\n&gt; Les citations commencent par « &gt; ».\n\n## Listes de tâches\n- [x] Ouvrir Mis Notas\n- [ ] Cocher cette case (touchez-la en mode lecture)\n- [ ] Créer votre premier dossier\n\n## Vos notes en sécurité\n- Sans compte, tout est enregistré **uniquement sur cet appareil**.\n- Dans les **Réglages**, vous pouvez activer une sauvegarde automatique quotidienne dans le dossier de votre choix.\n- Si vous connectez **Nextcloud**, les notes sont chiffrées sur votre téléphone avant l’envoi. Conservez bien votre mot de passe principal : **si vous l’oubliez, personne ne pourra récupérer vos notes**.</string>
 </resources>

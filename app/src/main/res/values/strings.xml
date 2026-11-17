@@ -292,4 +292,11 @@
     <string name="image_view_fullscreen">View full screen</string>
     <string name="image_delete">Delete image</string>
     <string name="folder_duplicate_error">A folder with this name already exists here</string>
+    <string name="hint_dismiss">Got it</string>
+    <string name="hint_read_mode">Notes open in reading mode so you don’t change them by accident. Tap ✏️ to edit.</string>
+    <string name="hint_multi_select">Long-press a note to select several and move, pin, color or delete them together.</string>
+    <string name="hint_local_mode">Your notes are only stored on this device. Connect Nextcloud to sync them end-to-end encrypted, or turn on automatic backups.</string>
+    <string name="hint_local_mode_action">Open settings</string>
+    <string name="welcome_note_title">Welcome to Mis Notas</string>
+    <string name="welcome_note_body">This note is a short tour of the app. Edit it, practice with it, or delete it whenever you like.\n\n## The basics\n- Tap **+** to create a note.\n- Notes open in **reading mode**: tap ✏️ to edit.\n- Long-press a note to **select several** and move, pin, color or delete them.\n- Long-press a folder and drag it to put it inside another one.\n- Deleted notes go to the **trash**, where they are kept for %1$d days.\n\n## Formatting\nWrite in Markdown or use the editor toolbar: **bold**, *italic*, ~~strikethrough~~ and `code`.\n\n&gt; Quotes start with “&gt;”.\n\n## Checklists\n- [x] Open Mis Notas\n- [ ] Tick this box (tap it in reading mode)\n- [ ] Create your first folder\n\n## Keep your notes safe\n- Without an account, everything is stored **only on this device**.\n- In **Settings** you can turn on a daily automatic backup to a folder of your choice.\n- If you connect **Nextcloud**, notes are encrypted on your phone before they are uploaded. Keep your master password safe: **if you forget it, nobody can recover your notes**.</string>
 </resources>

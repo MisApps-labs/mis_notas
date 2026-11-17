@@ -305,4 +305,11 @@
     <string name="image_view_fullscreen">Ver a pantalla completa</string>
     <string name="image_delete">Eliminar imagen</string>
     <string name="folder_duplicate_error">Ya existe una carpeta con este nombre en esta ubicación</string>
+    <string name="hint_dismiss">Entendido</string>
+    <string name="hint_read_mode">Las notas se abren en modo lectura para que no las cambies sin querer. Pulsa ✏️ para editar.</string>
+    <string name="hint_multi_select">Mantén pulsada una nota para seleccionar varias y moverlas, fijarlas, colorearlas o borrarlas a la vez.</string>
+    <string name="hint_local_mode">Tus notas solo están guardadas en este dispositivo. Conecta Nextcloud para sincronizarlas con cifrado de extremo a extremo, o activa la copia automática.</string>
+    <string name="hint_local_mode_action">Abrir ajustes</string>
+    <string name="welcome_note_title">Te damos la bienvenida a Mis Notas</string>
+    <string name="welcome_note_body">Esta nota es un pequeño recorrido por la app. Puedes editarla, practicar con ella o borrarla cuando quieras.\n\n## Lo básico\n- Pulsa **+** para crear una nota.\n- Las notas se abren en **modo lectura**: pulsa ✏️ para editar.\n- Mantén pulsada una nota para **seleccionar varias** y moverlas, fijarlas, colorearlas o borrarlas.\n- Mantén pulsada una carpeta y arrástrala para meterla dentro de otra.\n- Las notas borradas van a la **papelera**, donde se guardan %1$d días.\n\n## Formato\nEscribe en Markdown o usa la barra de herramientas del editor: **negrita**, *cursiva*, ~~tachado~~ y `código`.\n\n&gt; Las citas empiezan con «&gt;».\n\n## Listas de tareas\n- [x] Abrir Mis Notas\n- [ ] Marcar esta casilla (tócala en modo lectura)\n- [ ] Crear tu primera carpeta\n\n## Tus notas, a salvo\n- Sin cuenta, todo se guarda **solo en este dispositivo**.\n- En **Ajustes** puedes activar una copia de seguridad automática diaria en la carpeta que elijas.\n- Si conectas **Nextcloud**, las notas se cifran en el móvil antes de subirse. Guarda bien tu contraseña maestra: **si la olvidas, nadie podrá recuperar tus notas**.</string>
 </resources>

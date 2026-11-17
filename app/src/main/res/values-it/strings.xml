@@ -305,4 +305,11 @@
     <string name="image_view_fullscreen">Visualizza a schermo intero</string>
     <string name="image_delete">Elimina immagine</string>
     <string name="folder_duplicate_error">Esiste già una cartella con questo nome in questa posizione</string>
+    <string name="hint_dismiss">Ho capito</string>
+    <string name="hint_read_mode">Le note si aprono in modalità lettura, così non le modifichi per sbaglio. Tocca ✏️ per modificarle.</string>
+    <string name="hint_multi_select">Tieni premuta una nota per selezionarne diverse e spostarle, fissarle, colorarle o eliminarle insieme.</string>
+    <string name="hint_local_mode">Le tue note sono salvate solo su questo dispositivo. Collega Nextcloud per sincronizzarle con crittografia end-to-end, oppure attiva il backup automatico.</string>
+    <string name="hint_local_mode_action">Apri impostazioni</string>
+    <string name="welcome_note_title">Ti diamo il benvenuto in Mis Notas</string>
+    <string name="welcome_note_body">Questa nota è un breve giro dell’app. Puoi modificarla, fare pratica o eliminarla quando vuoi.\n\n## Le basi\n- Tocca **+** per creare una nota.\n- Le note si aprono in **modalità lettura**: tocca ✏️ per modificarle.\n- Tieni premuta una nota per **selezionarne diverse** e spostarle, fissarle, colorarle o eliminarle.\n- Tieni premuta una cartella e trascinala per metterla dentro un’altra.\n- Le note eliminate finiscono nel **cestino**, dove restano per %1$d giorni.\n\n## Formattazione\nScrivi in Markdown o usa la barra degli strumenti dell’editor: **grassetto**, *corsivo*, ~~barrato~~ e `codice`.\n\n&gt; Le citazioni iniziano con «&gt;».\n\n## Liste di attività\n- [x] Aprire Mis Notas\n- [ ] Spuntare questa casella (toccala in modalità lettura)\n- [ ] Creare la tua prima cartella\n\n## Le tue note al sicuro\n- Senza account, tutto viene salvato **solo su questo dispositivo**.\n- Nelle **Impostazioni** puoi attivare un backup automatico giornaliero nella cartella che preferisci.\n- Se colleghi **Nextcloud**, le note vengono cifrate sul telefono prima del caricamento. Custodisci la tua password principale: **se la dimentichi, nessuno potrà recuperare le tue note**.</string>
 </resources>

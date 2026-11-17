@@ -33,6 +33,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material3.AlertDialog
@@ -275,6 +277,59 @@ fun EmptyState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+/**
+ * Aviso de ayuda breve y cerrable, para explicar un gesto o una función la primera vez que
+ * aparece. Opcionalmente lleva una acción (p. ej. "Conectar").
+ */
+@Composable
+fun HintCard(
+    text: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Rounded.Lightbulb,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {}
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = primary.copy(alpha = 0.10f),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 2.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = primary, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f).padding(vertical = 6.dp)) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (actionLabel != null) {
+                    TextButton(
+                        onClick = onAction,
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                        modifier = Modifier.heightIn(min = 36.dp)
+                    ) {
+                        Text(actionLabel, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.hint_dismiss),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

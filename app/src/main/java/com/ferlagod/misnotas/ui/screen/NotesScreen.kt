@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.StickyNote2
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.material3.AlertDialog
@@ -115,6 +116,7 @@ import com.ferlagod.misnotas.data.local.pref.AppSettings
 import com.ferlagod.misnotas.data.local.pref.SortOrder
 import com.ferlagod.misnotas.ui.components.ColorPalette
 import com.ferlagod.misnotas.ui.components.EmptyState
+import com.ferlagod.misnotas.ui.components.HintCard
 import com.ferlagod.misnotas.ui.components.FolderPickerDialog
 import com.ferlagod.misnotas.ui.markdown.markdownPreview
 import com.ferlagod.misnotas.ui.markdown.taskProgress
@@ -163,7 +165,10 @@ fun NotesScreen(
     snackbarHostState: SnackbarHostState,
     actions: NotesActions,
     /** Nota abierta en el panel lateral (pantallas anchas), para resaltarla en la lista. */
-    activeNoteId: String? = null
+    activeNoteId: String? = null,
+    /** Mostrar (una sola vez) el aviso de que una pulsación larga selecciona varias notas. */
+    showMultiSelectHint: Boolean = false,
+    onDismissMultiSelectHint: () -> Unit = {}
 ) {
     val isDark = isAppInDarkTheme()
     val primary = MaterialTheme.colorScheme.primary
@@ -185,6 +190,8 @@ fun NotesScreen(
     var showSortMenu by remember { mutableStateOf(false) }
 
     BackHandler(enabled = selectionMode) { selectedIds = emptySet() }
+    // Al seleccionar por primera vez, el aviso ya no hace falta.
+    LaunchedEffect(selectionMode) { if (selectionMode) onDismissMultiSelectHint() }
 
     val filterTitle = when (currentFilter) {
         is NotesFilter.All -> stringResource(R.string.all_notes)
@@ -370,6 +377,16 @@ fun NotesScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalItemSpacing = 10.dp
             ) {
+                if (showMultiSelectHint && !isTrashView && !selectionMode) {
+                    item(key = "hint_multi_select", span = StaggeredGridItemSpan.FullLine) {
+                        HintCard(
+                            text = stringResource(R.string.hint_multi_select),
+                            icon = Icons.Rounded.TouchApp,
+                            onDismiss = onDismissMultiSelectHint,
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                }
                 if (pinnedNotes.isNotEmpty()) {
                     if (showSections) {
                         item(key = "header_pinned", span = StaggeredGridItemSpan.FullLine) {

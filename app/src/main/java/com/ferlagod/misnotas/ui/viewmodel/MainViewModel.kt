@@ -82,6 +82,9 @@ sealed interface PendingNavigation {
     data class OpenNote(val noteId: String) : PendingNavigation
 }
 
+/** Id fijo de la nota de bienvenida: igual en todos los dispositivos para que no se duplique. */
+private const val WELCOME_NOTE_ID = "misnotas-welcome"
+
 /**
  * ViewModel principal: sesión/cifrado, sincronización, ajustes, carpetas y notas.
  */
@@ -208,6 +211,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             syncRepository.migrateLegacyImages()
             purgeOldTrash()
         }
+        if (!settings.value.welcomeSeeded) viewModelScope.launch { seedWelcomeNote() }
         viewModelScope.launch {
             allFolders.collect { folders ->
                 val current = _currentFilter.value
@@ -234,6 +238,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ==========================================
     // Ajustes
     // ==========================================
+
+    fun dismissHint(key: String) = appSettings.dismissHint(key)
+
+    /**
+     * Primer arranque: crea una nota fijada que enseña la app usándola (formato, tareas,
+     * gestos, copias y cifrado). Solo si no hay nada guardado ni cuenta configurada, para no
+     * aparecer a quien actualiza la app.
+     *
+     * Usa un id fijo y se guarda como SINCRONIZADA y sin ETag: si el servidor ya tiene la nota
+     * de otro dispositivo, gana la del servidor (sin conflicto ni duplicado); si no la tiene,
+     * la sincronización la marca para subir.
+     */
+    private suspend fun seedWelcomeNote() {
+        noteWriteMutex.withLock {
+            if (!_isConfigured.value && noteDao.getAll().isEmpty() && folderDao.getAll().isEmpty()) {
+                noteDao.upsertNote(
+                    NoteEntity(
+                        id = WELCOME_NOTE_ID,
+                        title = text(R.string.welcome_note_title),
+                        content = text(R.string.welcome_note_body, AppSettings.TRASH_RETENTION_DAYS).trimEnd(),
+                        isPinned = true,
+                        syncStatus = SyncStatus.SYNCED,
+                        remoteEtag = null
+                    )
+                )
+            }
+        }
+        appSettings.setWelcomeSeeded()
+    }
 
     fun toggleLayoutMode() = appSettings.setGridLayout(!settings.value.gridLayout)
     fun setSortOrder(order: SortOrder) = appSettings.setSortOrder(order)

@@ -116,6 +116,7 @@ import com.ferlagod.misnotas.data.local.model.FolderTree
 import com.ferlagod.misnotas.data.sync.SyncState
 import com.ferlagod.misnotas.ui.components.ColorPalette
 import com.ferlagod.misnotas.ui.components.FolderPickerDialog
+import com.ferlagod.misnotas.ui.components.HintCard
 import com.ferlagod.misnotas.ui.theme.AccentGreen
 import com.ferlagod.misnotas.ui.theme.AccentOrange
 import com.ferlagod.misnotas.ui.theme.AccentRed
@@ -143,7 +144,10 @@ fun FoldersScreen(
     onDeleteFolder: (String) -> Unit,
     onTriggerSync: () -> Unit,
     onLockApp: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    /** Sin Nextcloud: aviso (cerrable) de que las notas solo están en este dispositivo. */
+    showLocalModeHint: Boolean = false,
+    onDismissLocalModeHint: () -> Unit = {}
 ) {
     val isDark = isAppInDarkTheme()
     val primary = MaterialTheme.colorScheme.primary
@@ -262,6 +266,20 @@ fun FoldersScreen(
                         }
                     )
                     Spacer(modifier = Modifier.height(18.dp))
+                }
+
+                if (!isConfigured && showLocalModeHint) {
+                    item(key = "hint_local_mode") {
+                        HintCard(
+                            text = stringResource(R.string.hint_local_mode),
+                            icon = Icons.Rounded.CloudOff,
+                            actionLabel = stringResource(R.string.hint_local_mode_action),
+                            onAction = onOpenSettings,
+                            onDismiss = onDismissLocalModeHint,
+                            modifier = Modifier.animateItem()
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                    }
                 }
 
                 item(key = "quick") {

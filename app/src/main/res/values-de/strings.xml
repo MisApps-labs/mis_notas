@@ -291,4 +291,11 @@
     <string name="image_view_fullscreen">Vollbild anzeigen</string>
     <string name="image_delete">Bild löschen</string>
     <string name="folder_duplicate_error">Ein Ordner mit diesem Namen existiert hier bereits</string>
+    <string name="hint_dismiss">Verstanden</string>
+    <string name="hint_read_mode">Notizen öffnen sich im Lesemodus, damit du sie nicht versehentlich änderst. Tippe auf ✏️, um sie zu bearbeiten.</string>
+    <string name="hint_multi_select">Halte eine Notiz gedrückt, um mehrere auszuwählen und sie gemeinsam zu verschieben, anzuheften, einzufärben oder zu löschen.</string>
+    <string name="hint_local_mode">Deine Notizen sind nur auf diesem Gerät gespeichert. Verbinde Nextcloud, um sie Ende-zu-Ende-verschlüsselt zu synchronisieren, oder aktiviere die automatische Sicherung.</string>
+    <string name="hint_local_mode_action">Einstellungen öffnen</string>
+    <string name="welcome_note_title">Willkommen bei Mis Notas</string>
+    <string name="welcome_note_body">Diese Notiz ist ein kurzer Rundgang durch die App. Du kannst sie bearbeiten, damit üben oder jederzeit löschen.\n\n## Die Grundlagen\n- Tippe auf **+**, um eine Notiz zu erstellen.\n- Notizen öffnen sich im **Lesemodus**: Tippe auf ✏️, um sie zu bearbeiten.\n- Halte eine Notiz gedrückt, um **mehrere auszuwählen** und sie zu verschieben, anzuheften, einzufärben oder zu löschen.\n- Halte einen Ordner gedrückt und ziehe ihn in einen anderen, um ihn dort einzuordnen.\n- Gelöschte Notizen landen im **Papierkorb** und werden dort %1$d Tage aufbewahrt.\n\n## Formatierung\nSchreibe in Markdown oder nutze die Werkzeugleiste des Editors: **fett**, *kursiv*, ~~durchgestrichen~~ und `Code`.\n\n&gt; Zitate beginnen mit „&gt;“.\n\n## Aufgabenlisten\n- [x] Mis Notas öffnen\n- [ ] Dieses Kästchen abhaken (im Lesemodus antippen)\n- [ ] Deinen ersten Ordner erstellen\n\n## Deine Notizen in Sicherheit\n- Ohne Konto wird alles **nur auf diesem Gerät** gespeichert.\n- In den **Einstellungen** kannst du eine tägliche automatische Sicherung in einen Ordner deiner Wahl aktivieren.\n- Wenn du **Nextcloud** verbindest, werden die Notizen auf deinem Handy verschlüsselt, bevor sie hochgeladen werden. Bewahre dein Master-Passwort gut auf: **Wenn du es vergisst, kann niemand deine Notizen wiederherstellen.**</string>
 </resources>

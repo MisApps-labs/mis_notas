@@ -17,6 +17,16 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 /** Orden de las notas en las listas (las fijadas siempre van primero). */
 enum class SortOrder { MODIFIED_DESC, MODIFIED_ASC, TITLE_ASC, TITLE_DESC }
 
+/** Avisos de ayuda que se muestran una sola vez (hasta que el usuario los cierra). */
+object Hints {
+    /** En el editor: las notas se abren en modo lectura y el lápiz pasa a edición. */
+    const val READ_MODE = "read_mode"
+    /** En la lista de notas: mantener pulsada una nota para seleccionar varias. */
+    const val MULTI_SELECT = "multi_select"
+    /** En el inicio, sin Nextcloud: las notas solo están en este dispositivo. */
+    const val LOCAL_MODE = "local_mode"
+}
+
 /** Preferencias de la app que no son secretas (aspecto y comportamiento). */
 data class AppSettingsState(
     val gridLayout: Boolean = true,
@@ -33,8 +43,14 @@ data class AppSettingsState(
     /** Momento de la última copia automática correcta (0 si nunca). */
     val lastAutoBackup: Long = 0L,
     /** La última copia automática falló (p. ej. la carpeta ya no existe). */
-    val autoBackupFailed: Boolean = false
-)
+    val autoBackupFailed: Boolean = false,
+    /** Ya se decidió si crear la nota de bienvenida (solo se intenta en el primer arranque). */
+    val welcomeSeeded: Boolean = false,
+    /** Avisos de [Hints] que el usuario ya ha cerrado. */
+    val dismissedHints: Set<String> = emptySet()
+) {
+    fun showHint(key: String) = key !in dismissedHints
+}
 
 /**
  * Preferencias no sensibles en SharedPreferences normales, expuestas como [StateFlow]
@@ -58,7 +74,9 @@ class AppSettings private constructor(context: Context) {
         autoBackup = prefs.getBoolean(KEY_AUTO_BACKUP, false),
         autoBackupFolder = prefs.getString(KEY_AUTO_BACKUP_FOLDER, null),
         lastAutoBackup = prefs.getLong(KEY_LAST_AUTO_BACKUP, 0L),
-        autoBackupFailed = prefs.getBoolean(KEY_AUTO_BACKUP_FAILED, false)
+        autoBackupFailed = prefs.getBoolean(KEY_AUTO_BACKUP_FAILED, false),
+        welcomeSeeded = prefs.getBoolean(KEY_WELCOME_SEEDED, false),
+        dismissedHints = prefs.getStringSet(KEY_DISMISSED_HINTS, null)?.toSet().orEmpty()
     )
 
     private fun update(block: SharedPreferences.Editor.() -> Unit) {
@@ -82,6 +100,13 @@ class AppSettings private constructor(context: Context) {
         putBoolean(KEY_AUTO_BACKUP_FAILED, !success)
     }
 
+    fun setWelcomeSeeded() = update { putBoolean(KEY_WELCOME_SEEDED, true) }
+    fun dismissHint(key: String) {
+        if (key in _state.value.dismissedHints) return
+        // Se guarda un conjunto nuevo: SharedPreferences no admite modificar el que devuelve.
+        update { putStringSet(KEY_DISMISSED_HINTS, _state.value.dismissedHints + key) }
+    }
+
     companion object {
         private const val PREFS = "misnotas_settings"
         private const val KEY_GRID = "grid_layout"
@@ -94,6 +119,8 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_AUTO_BACKUP_FOLDER = "auto_backup_folder"
         private const val KEY_LAST_AUTO_BACKUP = "last_auto_backup"
         private const val KEY_AUTO_BACKUP_FAILED = "auto_backup_failed"
+        private const val KEY_WELCOME_SEEDED = "welcome_seeded"
+        private const val KEY_DISMISSED_HINTS = "dismissed_hints"
 
         /** Días que una nota permanece en la papelera antes del vaciado automático. */
         const val TRASH_RETENTION_DAYS = 30
