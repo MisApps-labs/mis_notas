@@ -53,6 +53,7 @@
     <string name="reset_account">Reset / disconnect account</string>
     <string name="image_add_failed">Couldn’t add the image</string>
     <string name="image_alt">image</string>
+    <string name="load_external_image">Load external image from %1$s</string>
     <string name="image_size_title">Image size</string>
     <string name="image_size_fit">Fit to screen</string>
     <string name="edited_at">Edited %1$s</string>

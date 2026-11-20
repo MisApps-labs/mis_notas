@@ -47,4 +47,12 @@ class MarkdownTest {
     fun previewSkipsTableSeparator() {
         assertEquals("| a | b |\n| 1 | 2 |", markdownPreview("| a | b |\n|---|---|\n| 1 | 2 |"))
     }
+
+    @Test
+    fun remoteImageHost_onlyForWebAddresses() {
+        assertEquals("example.com", remoteImageHost("https://example.com/pixel.png?u=1"))
+        assertEquals("tracker.net:8080", remoteImageHost("http://user@tracker.net:8080/a"))
+        assertEquals(null, remoteImageHost("attachment://abc"))
+        assertEquals(null, remoteImageHost("data:image/png;base64,AAAA"))
+    }
 }

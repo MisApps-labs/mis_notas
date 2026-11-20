@@ -47,6 +47,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import com.ferlagod.misnotas.R
 import coil.compose.AsyncImage
 import com.ferlagod.misnotas.data.attachment.AttachmentStore
 import com.ferlagod.misnotas.ui.theme.AccentGreen
@@ -359,6 +370,28 @@ fun NoteImage(
     onLongClick: (() -> Unit)? = null
 ) {
     val maxHeight = (LocalConfiguration.current.screenHeightDp * maxHeightFraction).dp
+    // Las imágenes de internet no se descargan solas: avisarían al servidor de que se ha abierto
+    // la nota (y desde qué IP). Se cargan solo si el usuario lo pide, una vez por imagen.
+    val remoteHost = (model as? String)?.let(::remoteImageHost)
+    var allowRemote by rememberSaveable(model) { mutableStateOf(false) }
+    if (remoteHost != null && !allowRemote) {
+        OutlinedButton(
+            onClick = { allowRemote = true },
+            shape = RoundedCornerShape(12.dp),
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.load_external_image, remoteHost),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -380,6 +413,13 @@ fun NoteImage(
                 )
         )
     }
+}
+
+/** Servidor de una imagen de internet, o null si no es una dirección http(s). */
+internal fun remoteImageHost(address: String): String? {
+    if (!address.startsWith("https://", ignoreCase = true) && !address.startsWith("http://", ignoreCase = true)) return null
+    return address.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+        .substringAfterLast('@').ifBlank { null }
 }
 
 @Composable
