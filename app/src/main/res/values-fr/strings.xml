@@ -118,6 +118,8 @@
     <string name="sync_stage_downloading">Téléchargement des modifications…</string>
     <string name="sync_stage_uploading">Envoi des modifications…</string>
     <string name="conflict_suffix">" (conflit)"</string>
+    <string name="note_trashed_elsewhere">Cette note a été placée dans la corbeille sur un autre appareil.</string>
+    <string name="note_trashed_elsewhere_restored">Cette note a été placée dans la corbeille sur un autre appareil. Elle a été restaurée pour conserver vos modifications.</string>
     <string name="untitled">Sans titre</string>
     <string name="err_wrong_master">Mot de passe principal incorrect</string>
     <string name="err_master_mismatch_existing">Le mot de passe ne correspond pas aux notes déjà présentes sur le serveur</string>

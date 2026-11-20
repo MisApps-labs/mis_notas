@@ -119,6 +119,8 @@
     <string name="sync_stage_downloading">Downloading changes…</string>
     <string name="sync_stage_uploading">Uploading changes…</string>
     <string name="conflict_suffix">" (conflict)"</string>
+    <string name="note_trashed_elsewhere">This note was moved to the trash on another device.</string>
+    <string name="note_trashed_elsewhere_restored">This note was moved to the trash on another device. It has been restored to keep your changes.</string>
     <string name="untitled">Untitled</string>
     <string name="err_wrong_master">Wrong master password</string>
     <string name="err_master_mismatch_existing">The password doesn’t match the notes already on the server</string>

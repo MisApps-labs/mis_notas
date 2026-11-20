@@ -696,6 +696,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun restoreNote(noteId: String) = restoreNotes(listOf(noteId))
 
+    /**
+     * La sincronización trajo la nota abierta en el editor como enviada a la papelera. Con
+     * [keepEdits] el usuario estaba escribiendo: se restaura para que lo escrito no acabe en la
+     * papelera sin que lo sepa.
+     */
+    fun onNoteTrashedElsewhere(noteId: String, keepEdits: Boolean) {
+        if (keepEdits) {
+            restoreNotes(listOf(noteId))
+            _events.trySend(UiEvent.Message(text(R.string.note_trashed_elsewhere_restored)))
+        } else {
+            _events.trySend(UiEvent.Message(text(R.string.note_trashed_elsewhere)))
+        }
+    }
+
     fun restoreNotes(ids: Collection<String>) {
         if (ids.isEmpty()) return
         viewModelScope.launch {

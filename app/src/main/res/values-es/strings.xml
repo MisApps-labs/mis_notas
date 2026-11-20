@@ -118,6 +118,8 @@
     <string name="sync_stage_downloading">Descargando cambios…</string>
     <string name="sync_stage_uploading">Subiendo cambios…</string>
     <string name="conflict_suffix">" (conflicto)"</string>
+    <string name="note_trashed_elsewhere">Esta nota se ha movido a la papelera en otro dispositivo.</string>
+    <string name="note_trashed_elsewhere_restored">Esta nota se ha movido a la papelera en otro dispositivo. Se ha restaurado para conservar tus cambios.</string>
     <string name="untitled">Sin título</string>
     <string name="err_wrong_master">Contraseña maestra incorrecta</string>
     <string name="err_master_mismatch_existing">La contraseña no coincide con las notas que ya hay en el servidor</string>

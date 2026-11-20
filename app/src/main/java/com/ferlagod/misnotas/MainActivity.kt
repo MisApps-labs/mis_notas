@@ -613,8 +613,7 @@ private fun EditorHost(
         if (currentLive != null) everObservedLive = true
         if (!isNewNote && noteLoaded &&
             ((existingNote == null && currentLive == null) ||
-                (everObservedLive && currentLive == null) ||
-                (existingNote?.isDeleted != true && currentLive?.isDeleted == true))
+                (everObservedLive && currentLive == null))
         ) {
             onClose()
         }
@@ -639,6 +638,8 @@ private fun EditorHost(
         onDuplicateNote = viewModel::duplicateNote,
         onOpenNote = onOpenNote,
         onAddImage = viewModel::addImageAttachment,
+        // Si la nota pasa a la papelera en otro dispositivo lo decide el editor (ver NoteEditorScreen).
+        onTrashedElsewhere = viewModel::onNoteTrashedElsewhere,
         showReadModeHint = settings.showHint(Hints.READ_MODE),
         onDismissReadModeHint = { viewModel.dismissHint(Hints.READ_MODE) }
     )

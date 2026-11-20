@@ -253,6 +253,11 @@ fun NoteEditorScreen(
     onDuplicateNote: suspend (String) -> String?,
     onOpenNote: (String) -> Unit,
     onAddImage: suspend (Uri) -> String,
+    /**
+     * Otro dispositivo mandó la nota a la papelera mientras estaba abierta. Con [keepEdits]
+     * el editor tenía cambios y la nota se restaura para no perderlos; si no, el editor se cierra.
+     */
+    onTrashedElsewhere: (id: String, keepEdits: Boolean) -> Unit = { _, _ -> },
     /** Versión en vivo de la nota (cambia si la sincronización trae cambios de otro dispositivo). */
     liveNote: NoteEntity? = null,
     /** Avisa de la versión de la nota que tiene el editor, para detectar cambios simultáneos. */
@@ -322,6 +327,11 @@ fun NoteEditorScreen(
     var showHeadingMenu by remember { mutableStateOf(false) }
     var linkDialog by remember { mutableStateOf<LinkDialogState?>(null) }
 
+    fun persistChanges(sync: Boolean, closing: Boolean = false) {
+        if (!loaded || deleted) return
+        onSaveNote(stableId, title, normalizeMarkdown(textValue.text), selectedFolderId, selectedColor, isPinned, sync, closing)
+    }
+
     // Carga inicial (solo una vez: una sincronización posterior no pisa lo que se está escribiendo)
     LaunchedEffect(existingNote, noteLoaded) {
         if (loaded) return@LaunchedEffect
@@ -346,7 +356,17 @@ fun NoteEditorScreen(
     LaunchedEffect(liveNote) {
         val note = liveNote ?: return@LaunchedEffect
         if (note.isDeleted && existingNote?.isDeleted != true) {
-            deleted = true
+            // Otro dispositivo la mandó a la papelera. Si aquí se ha escrito algo, gana lo escrito:
+            // la nota se restaura y se sigue guardando. Si no, se cierra el editor con un aviso.
+            val edited = title.trim() != baseTitle.trim() || textValue.text.trimEnd() != baseContent.trimEnd()
+            if (loaded && edited) {
+                persistChanges(sync = false)
+                onTrashedElsewhere(stableId, true)
+            } else {
+                deleted = true
+                onTrashedElsewhere(stableId, false)
+                onBack()
+            }
             return@LaunchedEffect
         }
         if (!loaded || deleted || note.syncStatus != SyncStatus.SYNCED) return@LaunchedEffect
@@ -370,11 +390,6 @@ fun NoteEditorScreen(
             delay(150)
             runCatching { bodyFocus.requestFocus() }
         }
-    }
-
-    fun persistChanges(sync: Boolean, closing: Boolean = false) {
-        if (!loaded || deleted) return
-        onSaveNote(stableId, title, normalizeMarkdown(textValue.text), selectedFolderId, selectedColor, isPinned, sync, closing)
     }
 
     fun close() {

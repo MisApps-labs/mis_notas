@@ -118,6 +118,8 @@
     <string name="sync_stage_downloading">Download delle modifiche…</string>
     <string name="sync_stage_uploading">Caricamento delle modifiche…</string>
     <string name="conflict_suffix">" (conflitto)"</string>
+    <string name="note_trashed_elsewhere">Questa nota è stata spostata nel cestino su un altro dispositivo.</string>
+    <string name="note_trashed_elsewhere_restored">Questa nota è stata spostata nel cestino su un altro dispositivo. È stata ripristinata per conservare le tue modifiche.</string>
     <string name="untitled">Senza titolo</string>
     <string name="err_wrong_master">Password principale errata</string>
     <string name="err_master_mismatch_existing">La password non corrisponde alle note già presenti sul server</string>

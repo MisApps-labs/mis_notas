@@ -118,6 +118,8 @@
     <string name="sync_stage_downloading">Lade Änderungen herunter…</string>
     <string name="sync_stage_uploading">Lade Änderungen hoch…</string>
     <string name="conflict_suffix">" (Konflikt)"</string>
+    <string name="note_trashed_elsewhere">Diese Notiz wurde auf einem anderen Gerät in den Papierkorb verschoben.</string>
+    <string name="note_trashed_elsewhere_restored">Diese Notiz wurde auf einem anderen Gerät in den Papierkorb verschoben. Sie wurde wiederhergestellt, damit deine Änderungen erhalten bleiben.</string>
     <string name="untitled">Ohne Titel</string>
     <string name="err_wrong_master">Falsches Master-Passwort</string>
     <string name="err_master_mismatch_existing">Das Passwort passt nicht zu den Notizen auf dem Server</string>
