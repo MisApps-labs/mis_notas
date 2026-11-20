@@ -53,9 +53,16 @@ class AuthPreferences private constructor(context: Context) {
                 INSTANCE ?: AuthPreferences(context).also { INSTANCE = it }
             }
 
+        /** Intentos de abrir las preferencias antes de darlas por ilegibles. */
+        private const val OPEN_ATTEMPTS = 3
+
         /**
          * Si el Keystore se ha perdido (p. ej. tras restaurar una copia de seguridad en otro
          * dispositivo), el fichero cifrado es ilegible: se borra y se crea de nuevo.
+         *
+         * El Keystore a veces falla de forma pasajera (justo tras arrancar el móvil, con el
+         * servicio ocupado…). Borrar en ese caso cerraría la sesión y perdería el salt local, así
+         * que antes se reintenta varias veces.
          */
         private fun createPrefs(context: Context): SharedPreferences {
             fun build(): SharedPreferences {
@@ -70,13 +77,19 @@ class AuthPreferences private constructor(context: Context) {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             }
-            return try {
-                build()
-            } catch (e: Exception) {
-                Log.w(TAG, "Preferencias seguras ilegibles; se reinician", e)
-                context.deleteSharedPreferences(PREFS_FILENAME)
-                build()
+            var lastError: Exception? = null
+            for (attempt in 1..OPEN_ATTEMPTS) {
+                try {
+                    return build()
+                } catch (e: Exception) {
+                    lastError = e
+                    Log.w(TAG, "No se pudieron abrir las preferencias seguras (intento $attempt)", e)
+                    if (attempt < OPEN_ATTEMPTS) Thread.sleep(200L * attempt)
+                }
             }
+            Log.w(TAG, "Preferencias seguras ilegibles; se reinician", lastError)
+            context.deleteSharedPreferences(PREFS_FILENAME)
+            return build()
         }
     }
 
