@@ -26,6 +26,7 @@ import com.ferlagod.misnotas.data.local.model.SyncStatus
 import com.ferlagod.misnotas.data.local.pref.AppSettings
 import com.ferlagod.misnotas.data.local.pref.AppSettingsState
 import com.ferlagod.misnotas.data.local.pref.NextcloudCredentials
+import com.ferlagod.misnotas.data.local.pref.ServerUrl
 import com.ferlagod.misnotas.data.local.pref.SortOrder
 import com.ferlagod.misnotas.data.local.pref.ThemeMode
 import com.ferlagod.misnotas.data.sync.SyncMerger
@@ -312,7 +313,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onError(text(R.string.err_all_fields))
             return
         }
-        val url = serverUrl.trim()
+        // Una dirección WebDAV de la raíz personal se convierte en la carpeta de la app (ver ServerUrl).
+        // Si es la misma que ya está guardada se respeta: cambiarla movería la bóveda de sitio.
+        val savedUrl = authPreferences.getCredentials()?.serverUrl
+        val url = if (savedUrl != null && serverUrl.trim().trimEnd('/') == savedUrl) savedUrl else ServerUrl.normalize(serverUrl)
         if (!url.startsWith("https://", ignoreCase = true)) {
             onError(text(R.string.err_https_required))
             return
