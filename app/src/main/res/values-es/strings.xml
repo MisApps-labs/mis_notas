@@ -239,6 +239,9 @@
     <string name="auto_purge_trash_desc">Elimina las notas que llevan más de %1$d días en la papelera</string>
     <string name="section_backup">Copia de seguridad</string>
     <string name="backup_desc">Exporta todas tus notas como ficheros Markdown (con carpetas e imágenes) en un ZIP, o importa ficheros .zip, .md y .txt. Compatible con Obsidian, Joplin y otras apps.</string>
+    <string name="safety_copy_desc">Copia guardada antes de conectar la cuenta (%1$s). Se guarda dentro de la app, no en una carpeta pública.</string>
+    <string name="save_safety_copy">Guardar copia…</string>
+    <string name="safety_copy_saved">Copia guardada</string>
     <string name="export_notes">Exportar</string>
     <string name="import_notes">Importar</string>
     <string name="backup_in_progress">Procesando…</string>

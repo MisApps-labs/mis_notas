@@ -152,6 +152,9 @@ fun SettingsScreen(
     onAppLockChange: (Boolean) -> Unit,
     onExport: (Uri) -> Unit,
     onImport: (List<Uri>) -> Unit,
+    /** Fecha de la copia previa a la conexión (null si no hay) y cómo sacarla de la app. */
+    safetyCopyTime: Long?,
+    onSaveSafetyCopy: (Uri) -> Unit,
     onAutoBackupChange: (Boolean) -> Unit,
     onAutoBackupFolderSelected: (Uri) -> Unit,
     currentLanguage: AppLanguage,
@@ -164,6 +167,9 @@ fun SettingsScreen(
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         onImport(uris)
+    }
+    val safetyCopyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) onSaveSafetyCopy(uri)
     }
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) onAutoBackupFolderSelected(uri)
@@ -310,6 +316,20 @@ fun SettingsScreen(
                             Text(stringResource(R.string.import_notes), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
+                    if (safetyCopyTime != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.safety_copy_desc, formatSyncTime(safetyCopyTime)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(
+                            onClick = { safetyCopyLauncher.launch(safetyCopyFileName(safetyCopyTime)) },
+                            enabled = !busy
+                        ) {
+                            Text(stringResource(R.string.save_safety_copy))
+                        }
+                    }
                     AnimatedVisibility(visible = busy) {
                         Row(
                             modifier = Modifier.padding(top = 12.dp),
@@ -406,6 +426,9 @@ private fun folderLabel(treeUri: String): String = try {
 } catch (_: Exception) {
     treeUri
 }
+
+private fun safetyCopyFileName(time: Long): String =
+    BackupManager.SAFETY_PREFIX + SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date(time)) + ".zip"
 
 private fun backupFileName(): String =
     "MisNotas-" + SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date()) + ".zip"

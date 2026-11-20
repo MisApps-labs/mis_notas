@@ -235,6 +235,9 @@
     <string name="auto_purge_trash_desc">Delete notes that have been in the trash for more than %1$d days</string>
     <string name="section_backup">Backup</string>
     <string name="backup_desc">Export all your notes as Markdown files (with folders and images) in a ZIP file, or import .zip, .md and .txt files. Compatible with Obsidian, Joplin and other apps.</string>
+    <string name="safety_copy_desc">Copy saved before connecting your account (%1$s). It stays inside the app, not in a public folder.</string>
+    <string name="save_safety_copy">Save copy…</string>
+    <string name="safety_copy_saved">Copy saved</string>
     <string name="export_notes">Export</string>
     <string name="import_notes">Import</string>
     <string name="backup_in_progress">Working…</string>

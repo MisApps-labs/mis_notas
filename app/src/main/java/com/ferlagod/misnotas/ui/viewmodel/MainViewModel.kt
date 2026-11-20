@@ -148,6 +148,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Hay una importación/exportación en curso. */
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
+    /** Fecha de la copia previa a la conexión más reciente (null si no hay). */
+    private val _safetyCopyTime = MutableStateFlow<Long?>(null)
+    val safetyCopyTime: StateFlow<Long?> = _safetyCopyTime.asStateFlow()
+
     val allActiveNotes = noteDao.getAllNotesFlow().stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
@@ -226,6 +230,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        refreshSafetyCopy()
         if (settings.value.autoBackup && settings.value.autoBackupFolder != null) {
             AutoBackupWorker.schedule(application)
         }
@@ -316,6 +321,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val credentials = NextcloudCredentials(url, username.trim(), appPassword.trim())
             syncRepository.connectAccount(credentials, masterPassword)
                 .onSuccess {
+                    refreshSafetyCopy()
                     _isConfigured.value = true
                     _isUnlocked.value = true
                     SyncWorker.schedule(getApplication())
@@ -776,6 +782,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun exportBackup(uri: Uri) = runBusy {
         val count = backupManager.exportZip(uri, text(R.string.untitled))
         _events.trySend(UiEvent.Message(quantity(R.plurals.export_done, count)))
+    }
+
+    /** Saca la última copia previa a la conexión a [uri], elegido por el usuario. */
+    fun saveSafetyCopy(uri: Uri) = runBusy {
+        backupManager.saveLatestSafetyCopy(uri)
+        _events.trySend(UiEvent.Message(text(R.string.safety_copy_saved)))
+    }
+
+    private fun refreshSafetyCopy() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _safetyCopyTime.value = backupManager.latestSafetyCopy()?.lastModified()
+        }
     }
 
     fun importBackup(uris: List<Uri>) {

@@ -239,6 +239,9 @@
     <string name="auto_purge_trash_desc">Elimina le note nel cestino da più di %1$d giorni</string>
     <string name="section_backup">Backup</string>
     <string name="backup_desc">Esporta tutte le note come file Markdown (con cartelle e immagini) in uno ZIP, oppure importa file .zip, .md e .txt. Compatibile con Obsidian, Joplin e altre app.</string>
+    <string name="safety_copy_desc">Copia salvata prima di collegare l’account (%1$s). Resta nell’app, non in una cartella pubblica.</string>
+    <string name="save_safety_copy">Salva copia…</string>
+    <string name="safety_copy_saved">Copia salvata</string>
     <string name="export_notes">Esporta</string>
     <string name="import_notes">Importa</string>
     <string name="backup_in_progress">Elaborazione…</string>

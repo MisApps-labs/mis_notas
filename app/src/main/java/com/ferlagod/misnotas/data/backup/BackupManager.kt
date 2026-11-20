@@ -4,12 +4,8 @@
 
 package com.ferlagod.misnotas.data.backup
 
-import android.content.ContentValues
 import android.content.Context
-import android.os.Build
-import android.os.Environment
 import android.provider.DocumentsContract
-import android.provider.MediaStore
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.room.withTransaction
@@ -70,48 +66,49 @@ class BackupManager(context: Context) {
 
     /**
      * Copia de seguridad automática antes de conectar una cuenta (la primera sincronización
-     * fusiona las notas del dispositivo con las del servidor). Se guarda en Descargas/MisNotas
-     * en Android 10+, y en Android/data/com.ferlagod.misnotas/files/Documents en versiones
-     * anteriores. Sin notas no se crea nada.
+     * fusiona las notas del dispositivo con las del servidor).
      *
-     * @return dónde se ha guardado, o null si no había nada que copiar.
+     * Se guarda en el almacenamiento privado de la app, no en Descargas: es un ZIP sin cifrar y
+     * en una carpeta pública lo podrían leer otras apps y seguiría ahí tras desinstalar. Se
+     * conservan las [SAFETY_KEEP] más recientes; el usuario puede sacar la última desde Ajustes
+     * con [saveLatestSafetyCopy]. Sin notas no se crea nada.
+     *
+     * @return el fichero creado, o null si no había nada que copiar.
      */
-    suspend fun exportSafetyCopy(untitled: String): String? = withContext(Dispatchers.IO) {
+    suspend fun exportSafetyCopy(untitled: String): File? = withContext(Dispatchers.IO) {
         if (noteDao.countLive() == 0) return@withContext null
+        val dir = safetyDir().apply { mkdirs() }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())
-        val fileName = "MisNotas-backup-$stamp.zip"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = appContext.contentResolver
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/zip")
-                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$SAFETY_DIR")
-                put(MediaStore.Downloads.IS_PENDING, 1)
-            }
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                ?: throw IOException("Cannot create $fileName")
-            try {
-                writeZip(resolver.openOutputStream(uri) ?: throw IOException("Cannot open $uri"), untitled)
-                resolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
-            } catch (e: Exception) {
-                resolver.delete(uri, null, null)
-                throw e
-            }
-            "${Environment.DIRECTORY_DOWNLOADS}/$SAFETY_DIR/$fileName"
-        } else {
-            val dir = appContext.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                ?: throw IOException("External storage not available")
-            val file = File(dir, fileName)
-            try {
-                writeZip(FileOutputStream(file), untitled)
-            } catch (e: Exception) {
-                file.delete()
-                throw e
-            }
-            file.absolutePath
+        val file = File(dir, "$SAFETY_PREFIX$stamp.zip")
+        val tmp = File(dir, "${file.name}.tmp")
+        try {
+            writeZip(FileOutputStream(tmp), untitled)
+            if (!tmp.renameTo(file)) throw IOException("Cannot save ${file.name}")
+        } catch (e: Exception) {
+            tmp.delete()
+            throw e
         }
+        safetyCopies().drop(SAFETY_KEEP).forEach { it.delete() }
+        file
     }
+
+    /** La copia previa a la conexión más reciente, o null si no hay ninguna. */
+    fun latestSafetyCopy(): File? = safetyCopies().firstOrNull()
+
+    /** Guarda la última copia previa a la conexión en [uri] (creado con ACTION_CREATE_DOCUMENT). */
+    suspend fun saveLatestSafetyCopy(uri: Uri) = withContext(Dispatchers.IO) {
+        val source = latestSafetyCopy() ?: throw IOException("No safety copy")
+        val output = appContext.contentResolver.openOutputStream(uri) ?: throw IOException("Cannot open $uri")
+        output.use { out -> source.inputStream().use { it.copyTo(out) } }
+    }
+
+    private fun safetyDir() = File(appContext.filesDir, SAFETY_DIR)
+
+    /** Copias previas, de la más reciente a la más antigua (el nombre lleva la fecha). */
+    private fun safetyCopies(): List<File> =
+        safetyDir().listFiles { f -> f.isFile && f.name.startsWith(SAFETY_PREFIX) && f.name.endsWith(".zip") }
+            .orEmpty()
+            .sortedByDescending { it.name }
 
     /**
      * Copia automática en la carpeta [treeUri] elegida por el usuario (ACTION_OPEN_DOCUMENT_TREE).
@@ -414,7 +411,9 @@ class BackupManager(context: Context) {
 
     companion object {
         const val ATTACHMENTS_DIR = "attachments"
-        private const val SAFETY_DIR = "MisNotas"
+        private const val SAFETY_DIR = "safety-copies"
+        const val SAFETY_PREFIX = "MisNotas-backup-"
+        const val SAFETY_KEEP = 3
         const val AUTO_BACKUP_PREFIX = "MisNotas-auto-"
         const val AUTO_BACKUP_KEEP = 3
         private const val MAX_NOTE_BYTES = 10L * 1024 * 1024

@@ -265,6 +265,7 @@ private fun AppNavigationHost(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val pendingNavigation by viewModel.pendingNavigation.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val safetyCopyTime by viewModel.safetyCopyTime.collectAsStateWithLifecycle()
 
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
@@ -389,6 +390,8 @@ private fun AppNavigationHost(
                 onAppLockChange = onAppLockChange,
                 onExport = viewModel::exportBackup,
                 onImport = viewModel::importBackup,
+                safetyCopyTime = safetyCopyTime,
+                onSaveSafetyCopy = viewModel::saveSafetyCopy,
                 onAutoBackupChange = viewModel::setAutoBackup,
                 onAutoBackupFolderSelected = viewModel::setAutoBackupFolder,
                 currentLanguage = currentLanguage,
