@@ -239,35 +239,48 @@ class BackupManager(context: Context) {
     }
 
     private suspend fun importZip(uri: Uri): ImportResult {
-        // Se lee todo primero para poder resolver las imágenes referenciadas desde las notas.
-        val entries = LinkedHashMap<String, ByteArray>()
-        var total = 0L
-        ZipInputStream(openStream(uri).buffered()).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                if (entry.isDirectory) continue
-                val path = normalizePath(entry.name) ?: continue
-                if (path.split('/').any { it.startsWith("__MACOSX") || it.startsWith(".") }) continue
-                val bytes = readLimited(zip, MAX_ENTRY_BYTES, closeStream = false)
-                total += bytes.size
-                if (total > MAX_ZIP_BYTES) throw IOException("ZIP too large")
-                entries[path] = bytes
+        // Cada entrada se vuelca a un fichero temporal (no a memoria: un ZIP grande con fotos
+        // agotaría la memoria y cerraría la app) para poder resolver luego las imágenes.
+        val tempDir = File(appContext.cacheDir, "import-${UUID.randomUUID()}").apply { mkdirs() }
+        try {
+            val entries = LinkedHashMap<String, File>()
+            var total = 0L
+            var index = 0
+            ZipInputStream(openStream(uri).buffered()).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (entry.isDirectory) continue
+                    val path = normalizePath(entry.name) ?: continue
+                    if (path.split('/').any { it.startsWith("__MACOSX") || it.startsWith(".") }) continue
+                    val file = File(tempDir, (index++).toString())
+                    total += copyLimited(zip, file, MAX_ENTRY_BYTES, MAX_ZIP_BYTES - total)
+                    entries[path] = file
+                }
             }
+            return importEntries(entries)
+        } finally {
+            tempDir.deleteRecursively()
         }
+    }
 
+    private suspend fun importEntries(entries: Map<String, File>): ImportResult {
         var imported = 0
         var skipped = 0
         val folderCache = HashMap<String, String?>()
         val importedAttachments = HashMap<String, String>()
 
-        for ((path, bytes) in entries) {
+        for ((path, file) in entries) {
             val lower = path.lowercase()
             if (!(lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".txt"))) continue
+            if (file.length() > MAX_NOTE_BYTES) {
+                skipped++
+                continue
+            }
 
             val segments = path.split('/')
             val fileName = segments.last()
             val dirSegments = segments.dropLast(1)
-            val parsed = MarkdownFile.parse(bytes.toString(Charsets.UTF_8), fileName.substringBeforeLast('.'))
+            val parsed = MarkdownFile.parse(file.readText(Charsets.UTF_8), fileName.substringBeforeLast('.'))
 
             // 1) Imágenes locales del ZIP referenciadas por la nota → adjuntos.
             // El tamaño de la imagen (`#w=50`, ver ImageSizing) no forma parte de la ruta.
@@ -280,7 +293,7 @@ class BackupManager(context: Context) {
             for (match in IMAGE_LINK.findAll(parsed.content)) {
                 val resolved = resolve(match.groupValues[2]) ?: continue
                 if (resolved !in importedAttachments) {
-                    importedAttachments[resolved] = storeAttachment(entries.getValue(resolved), resolved)
+                    importedAttachments[resolved] = storeAttachment(entries.getValue(resolved).readBytes(), resolved)
                 }
             }
             // 2) Se reescriben los enlaces a `attachment://<id>`.
@@ -300,6 +313,26 @@ class BackupManager(context: Context) {
             imported++
         }
         return ImportResult(imported, skipped)
+    }
+
+    /**
+     * Copia [input] en [target] sin pasar de [limit] bytes ni de lo que queda del total
+     * ([remaining]). Devuelve los bytes copiados. No cierra [input].
+     */
+    private fun copyLimited(input: InputStream, target: File, limit: Long, remaining: Long): Long {
+        val buffer = ByteArray(16 * 1024)
+        var copied = 0L
+        FileOutputStream(target).use { out ->
+            while (true) {
+                val n = input.read(buffer)
+                if (n == -1) break
+                copied += n
+                if (copied > limit) throw IOException("File too large")
+                if (copied > remaining) throw IOException("ZIP too large")
+                out.write(buffer, 0, n)
+            }
+        }
+        return copied
     }
 
     private suspend fun storeAttachment(bytes: ByteArray, path: String): String {
