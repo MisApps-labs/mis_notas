@@ -129,6 +129,13 @@ class RemoteCodecTest {
         assertEquals("Antigua", record.entity.title)
         assertEquals("Texto v1", record.entity.content)
         assertEquals(null, record.entity.folderId)
+        assertTrue(record.legacy)
+        // Un fichero v1 no puede hacerse pasar por otra nota.
+        try {
+            RemoteCodec.decodeNote(legacy, "otra-nota", key)
+            fail("Debía rechazar un id que no coincide con el nombre del fichero")
+        } catch (_: IllegalArgumentException) {
+        }
     }
 
     @Test

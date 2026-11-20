@@ -307,7 +307,12 @@ class SyncRepository private constructor(context: Context) {
 
             database.withTransaction {
                 val current = folderDao.getFolderById(id)
-                when (val action = SyncMerger.resolveFolder(current, record, meta.etag)) {
+                val action = if (record is RemoteRecord.Live && record.legacy) {
+                    SyncMerger.resolveLegacyFolder(current, record.entity, meta.etag)
+                } else {
+                    SyncMerger.resolveFolder(current, record, meta.etag)
+                }
+                when (action) {
                     is MergeAction.SaveRemote -> folderDao.upsertFolder(action.entity)
                     is MergeAction.KeepLocal -> folderDao.setRemoteEtag(id, action.etag)
                     is MergeAction.Reupload -> {
@@ -371,6 +376,14 @@ class SyncRepository private constructor(context: Context) {
 
             database.withTransaction {
                 val current = noteDao.getNoteById(id)
+                if (record is RemoteRecord.Live && record.legacy) {
+                    // Formato v1 sin autenticar: nunca sustituye ni retira una nota local.
+                    applyNoteAction(
+                        id,
+                        SyncMerger.resolveLegacyNote(current, record.entity, meta.etag, { UUID.randomUUID().toString() }, conflictSuffix, untitled)
+                    )
+                    return@withTransaction
+                }
                 val action = SyncMerger.resolveNote(current, record, meta.etag, { UUID.randomUUID().toString() }, conflictSuffix, untitled)
                 if (current != null && !current.isDeleted && (action is MergeAction.DeleteLocal || action is MergeAction.TrashLocal)) {
                     pendingRemovals += PendingRemoval.Tombstone(id, record, meta.etag)

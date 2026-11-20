@@ -91,4 +91,4 @@ Las lápidas no se eliminan, para que los dispositivos que estaban sin conexión
 
 ## Compatibilidad con v1
 
-Los ficheros de la v1.0 no tienen el campo `format` y cifran por separado `title`, `content` (notas) y `name` (carpetas), sin AAD, con 65.536 iteraciones y un salt que solo existía en el dispositivo. La v2 los lee y los reescribe en el formato nuevo en la siguiente subida.
+Los ficheros de la v1.0 no tienen el campo `format` y cifran por separado `title`, `content` (notas) y `name` (carpetas), sin AAD, con 65.536 iteraciones y un salt que solo existía en el dispositivo. La v2 los lee y los reescribe en el formato nuevo en la siguiente subida. Como sus metadatos no están autenticados, el `id` debe coincidir con el nombre del fichero y un fichero v1 nunca sustituye a una nota o carpeta que ya exista en el dispositivo: si el texto difiere, se guarda como copia " (conflicto)".

@@ -13,7 +13,11 @@ import javax.crypto.SecretKey
 
 /** Registro remoto descodificado: o bien la entidad viva, o bien una lápida de borrado. */
 sealed interface RemoteRecord<out T> {
-    data class Live<T>(val entity: T) : RemoteRecord<T>
+    /**
+     * Entidad viva. [legacy] es true si viene en el formato v1, cuyos metadatos (carpeta, fechas,
+     * papelera…) no van cifrados ni autenticados: ver [SyncMerger.resolveLegacyNote].
+     */
+    data class Live<T>(val entity: T, val legacy: Boolean = false) : RemoteRecord<T>
     /**
      * Lápida de borrado. [verified] es true si lleva una prueba cifrada con la clave de la bóveda
      * (la generan las versiones actuales). Una lápida sin prueba puede venir de una versión
@@ -65,7 +69,7 @@ object RemoteCodec {
 
     fun decodeNote(raw: String, expectedId: String, key: SecretKey): RemoteRecord<NoteEntity> {
         val json = JSONObject(raw)
-        if (!json.has("format")) return RemoteRecord.Live(decodeLegacyNote(json, key))
+        if (!json.has("format")) return RemoteRecord.Live(decodeLegacyNote(json, expectedId, key), legacy = true)
 
         val id = checkEnvelope(json, TYPE_NOTE, expectedId)
         tombstoneOrNull(json, TYPE_NOTE, id, key)?.let { return it }
@@ -86,8 +90,8 @@ object RemoteCodec {
         )
     }
 
-    private fun decodeLegacyNote(json: JSONObject, key: SecretKey): NoteEntity = NoteEntity(
-        id = json.getString("id"),
+    private fun decodeLegacyNote(json: JSONObject, expectedId: String, key: SecretKey): NoteEntity = NoteEntity(
+        id = legacyId(json, expectedId),
         folderId = json.optStringOrNull("folderId"),
         title = CryptoManager.decrypt(json.getString("title"), key),
         content = CryptoManager.decrypt(json.getString("content"), key),
@@ -116,7 +120,7 @@ object RemoteCodec {
 
     fun decodeFolder(raw: String, expectedId: String, key: SecretKey): RemoteRecord<FolderEntity> {
         val json = JSONObject(raw)
-        if (!json.has("format")) return RemoteRecord.Live(decodeLegacyFolder(json, key))
+        if (!json.has("format")) return RemoteRecord.Live(decodeLegacyFolder(json, expectedId, key), legacy = true)
 
         val id = checkEnvelope(json, TYPE_FOLDER, expectedId)
         tombstoneOrNull(json, TYPE_FOLDER, id, key)?.let { return it }
@@ -135,8 +139,8 @@ object RemoteCodec {
         )
     }
 
-    private fun decodeLegacyFolder(json: JSONObject, key: SecretKey): FolderEntity = FolderEntity(
-        id = json.getString("id"),
+    private fun decodeLegacyFolder(json: JSONObject, expectedId: String, key: SecretKey): FolderEntity = FolderEntity(
+        id = legacyId(json, expectedId),
         parentId = json.optStringOrNull("parentId"),
         name = CryptoManager.decrypt(json.getString("name"), key),
         color = json.optString("color", "DEFAULT"),
@@ -183,6 +187,16 @@ object RemoteCodec {
         put("version", VERSION)
         put("type", type)
         put("id", id)
+    }
+
+    /**
+     * El cifrado v1 no lleva AAD, así que nada ata el contenido a su fichero: al menos el id
+     * declarado debe coincidir con el nombre, para que un fichero no pueda sobrescribir otra nota.
+     */
+    private fun legacyId(json: JSONObject, expectedId: String): String {
+        val id = json.getString("id")
+        require(id == expectedId) { "El id del fichero no coincide con su nombre" }
+        return id
     }
 
     private fun checkEnvelope(json: JSONObject, type: String, expectedId: String): String {

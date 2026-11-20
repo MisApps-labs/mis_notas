@@ -109,6 +109,36 @@ object SyncMerger {
         }
     }
 
+    /**
+     * Fusión de una nota en formato v1. Su texto va cifrado pero sin AAD y sus metadatos van en
+     * claro, así que el servidor podría reutilizar cifrados viejos o cambiar fechas y estados.
+     * Por eso un fichero v1 nunca sustituye a una nota local: si el texto difiere se guarda como
+     * copia "(conflicto)". En todos los casos la nota se vuelve a subir en formato v2.
+     */
+    fun resolveLegacyNote(
+        local: NoteEntity?,
+        remote: NoteEntity,
+        etag: String?,
+        newId: () -> String,
+        conflictSuffix: String = CONFLICT_SUFFIX,
+        untitled: String = UNTITLED
+    ): MergeAction<NoteEntity> = when {
+        local == null -> MergeAction.SaveRemote(remote.copy(syncStatus = SyncStatus.PENDING_UPLOAD, remoteEtag = etag))
+        local.syncStatus == SyncStatus.PENDING_DELETE -> MergeAction.KeepLocal(etag)
+        local.title == remote.title && local.content == remote.content -> MergeAction.Reupload(etag)
+        else -> MergeAction.Conflict(
+            main = local.copy(remoteEtag = etag, syncStatus = SyncStatus.PENDING_UPLOAD),
+            copy = asConflictCopy(remote, newId(), conflictSuffix, untitled)
+        )
+    }
+
+    /** Como [resolveLegacyNote] para carpetas: se conserva la local y se reescribe en v2. */
+    fun resolveLegacyFolder(local: FolderEntity?, remote: FolderEntity, etag: String?): MergeAction<FolderEntity> = when {
+        local == null -> MergeAction.SaveRemote(remote.copy(syncStatus = SyncStatus.PENDING_UPLOAD, remoteEtag = etag))
+        local.syncStatus == SyncStatus.PENDING_DELETE -> MergeAction.KeepLocal(etag)
+        else -> MergeAction.Reupload(etag)
+    }
+
     fun resolveFolder(
         local: FolderEntity?,
         remote: RemoteRecord<FolderEntity>,

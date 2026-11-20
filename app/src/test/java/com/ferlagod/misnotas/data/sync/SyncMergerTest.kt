@@ -117,6 +117,22 @@ class SyncMergerTest {
     }
 
     @Test
+    fun legacyNote_neverReplacesLocal() {
+        val local = note(status = SyncStatus.SYNCED, etag = "e1")
+        val sameText = local.copy(isDeleted = true, updatedAt = Long.MAX_VALUE)
+        assertEquals(MergeAction.Reupload("e2"), SyncMerger.resolveLegacyNote(local, sameText, "e2", newId))
+
+        val otherText = local.copy(content = "texto viejo", updatedAt = Long.MAX_VALUE)
+        val action = SyncMerger.resolveLegacyNote(local, otherText, "e2", newId) as MergeAction.Conflict
+        assertEquals(local.content, action.main.content)
+        assertEquals(SyncStatus.PENDING_UPLOAD, action.main.syncStatus)
+        assertEquals("texto viejo", action.copy.content)
+
+        val fresh = SyncMerger.resolveLegacyNote(null, otherText, "e2", newId) as MergeAction.SaveRemote
+        assertEquals(SyncStatus.PENDING_UPLOAD, fresh.entity.syncStatus)
+    }
+
+    @Test
     fun folderTombstones_onlyVerifiedOnesDelete() {
         val synced = FolderEntity(id = "f", name = "carpeta", updatedAt = 100, syncStatus = SyncStatus.SYNCED, remoteEtag = "e1")
         assertEquals(MergeAction.DeleteLocal, SyncMerger.resolveFolder(synced, RemoteRecord.Tombstone("f", 1, verified = true), "e2"))
