@@ -310,6 +310,10 @@ class SyncRepository private constructor(context: Context) {
                 when (val action = SyncMerger.resolveFolder(current, record, meta.etag)) {
                     is MergeAction.SaveRemote -> folderDao.upsertFolder(action.entity)
                     is MergeAction.KeepLocal -> folderDao.setRemoteEtag(id, action.etag)
+                    is MergeAction.Reupload -> {
+                        folderDao.setRemoteEtag(id, action.etag)
+                        folderDao.updateSyncStatus(id, SyncStatus.PENDING_UPLOAD)
+                    }
                     MergeAction.DeleteLocal, is MergeAction.TrashLocal -> deleteFolderAndDetachInTx(id)
                     else -> Unit
                 }
@@ -318,10 +322,15 @@ class SyncRepository private constructor(context: Context) {
 
         for (local in folderDao.getAll()) {
             if (local.id in remoteFolders) continue
-            when (SyncMerger.resolveMissingRemote(local.syncStatus, local.remoteEtag)) {
+            when (SyncMerger.resolveMissingRemoteFolder(local.syncStatus, local.remoteEtag)) {
                 MissingRemoteAction.DELETE_LOCAL -> deleteFolderAndDetachLocally(local.id)
                 MissingRemoteAction.MARK_FOR_UPLOAD -> folderDao.updateSyncStatus(local.id, SyncStatus.PENDING_UPLOAD)
                 MissingRemoteAction.FORGET_ETAG -> folderDao.setRemoteEtag(local.id, null)
+                MissingRemoteAction.REUPLOAD -> {
+                    Log.w(TAG, "La carpeta ${local.id} desapareció del servidor sin lápida; se vuelve a subir")
+                    folderDao.setRemoteEtag(local.id, null)
+                    folderDao.updateSyncStatus(local.id, SyncStatus.PENDING_UPLOAD)
+                }
                 MissingRemoteAction.NOTHING, MissingRemoteAction.TRASH_AND_REUPLOAD -> Unit
             }
         }
@@ -380,7 +389,7 @@ class SyncRepository private constructor(context: Context) {
                 MissingRemoteAction.DELETE_LOCAL -> noteDao.deletePermanently(local.id)
                 MissingRemoteAction.MARK_FOR_UPLOAD -> noteDao.updateSyncStatus(local.id, SyncStatus.PENDING_UPLOAD)
                 MissingRemoteAction.FORGET_ETAG -> noteDao.setRemoteEtag(local.id, null)
-                MissingRemoteAction.NOTHING -> Unit
+                MissingRemoteAction.NOTHING, MissingRemoteAction.REUPLOAD -> Unit
             }
         }
 
@@ -435,6 +444,10 @@ class SyncRepository private constructor(context: Context) {
             is MergeAction.Conflict -> {
                 noteDao.upsertNote(action.main)
                 noteDao.upsertNote(action.copy)
+            }
+            is MergeAction.Reupload -> {
+                noteDao.setRemoteEtag(id, action.etag)
+                noteDao.updateSyncStatus(id, SyncStatus.PENDING_UPLOAD)
             }
             MergeAction.DeleteLocal -> noteDao.deletePermanently(id)
             is MergeAction.TrashLocal -> noteDao.trashFromRemote(id, action.etag)

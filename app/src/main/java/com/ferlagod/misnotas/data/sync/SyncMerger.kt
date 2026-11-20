@@ -28,6 +28,12 @@ sealed interface MergeAction<out T> {
     /** Conservar los cambios locales pendientes y recordar el ETag remoto actual. */
     data class KeepLocal(val etag: String?) : MergeAction<Nothing>
 
+    /**
+     * Conservar la versión local y volver a subirla sobre el fichero remoto [etag]. Se usa cuando
+     * lo que hay en el servidor no merece sustituir a lo local (p. ej. una lápida sin prueba).
+     */
+    data class Reupload(val etag: String?) : MergeAction<Nothing>
+
     /** Conflicto en una nota: se guarda [main] y se crea [copy] como nota nueva. */
     data class Conflict(val main: NoteEntity, val copy: NoteEntity) : MergeAction<NoteEntity>
 }
@@ -39,7 +45,9 @@ enum class MissingRemoteAction {
     MARK_FOR_UPLOAD,
     FORGET_ETAG,
     /** Nota: pasa a la papelera local y se vuelve a subir (como nota en papelera). */
-    TRASH_AND_REUPLOAD
+    TRASH_AND_REUPLOAD,
+    /** Se conserva y se vuelve a crear en el servidor (olvidando el ETag que ya no existe). */
+    REUPLOAD
 }
 
 /**
@@ -110,7 +118,12 @@ object SyncMerger {
             is RemoteRecord.Tombstone -> return when {
                 local == null -> MergeAction.Skip
                 local.syncStatus == SyncStatus.PENDING_UPLOAD -> MergeAction.KeepLocal(etag)
-                else -> MergeAction.DeleteLocal
+                local.syncStatus == SyncStatus.PENDING_DELETE -> MergeAction.DeleteLocal
+                // Borrado hecho por otro dispositivo con la misma clave.
+                remote.verified -> MergeAction.DeleteLocal
+                // Lápida sin prueba (versión antigua o el propio servidor): las carpetas no tienen
+                // papelera, así que se conserva la carpeta y se vuelve a subir.
+                else -> MergeAction.Reupload(etag)
             }
 
             is RemoteRecord.Live -> {
@@ -144,6 +157,15 @@ object SyncMerger {
                 if (syncStatus == SyncStatus.PENDING_DELETE) action else MissingRemoteAction.TRASH_AND_REUPLOAD
             else -> action
         }
+
+    /**
+     * Como [resolveMissingRemote], pero para carpetas: la app nunca borra el fichero de una
+     * carpeta (deja una lápida), así que si una carpeta sincronizada desaparece del servidor es
+     * que alguien borró el fichero a mano o el servidor perdió datos. No se borra: se vuelve a subir.
+     */
+    fun resolveMissingRemoteFolder(syncStatus: SyncStatus, remoteEtag: String?): MissingRemoteAction =
+        if (syncStatus == SyncStatus.SYNCED && remoteEtag != null) MissingRemoteAction.REUPLOAD
+        else resolveMissingRemote(syncStatus, remoteEtag)
 
     /** Por debajo de este número de notas retiradas en una ronda nunca se frena. */
     const val MASS_REMOVAL_MIN = 5

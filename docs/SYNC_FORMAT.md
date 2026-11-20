@@ -67,8 +67,10 @@ Igual que la nota con `"type": "folder"` y AAD `folder:<uuid>`. Payload:
 Cuando una nota o carpeta se borra definitivamente, su fichero se sustituye por:
 
 ```json
-{ "format": "misnotas", "version": 2, "type": "note", "id": "<uuid>", "deleted": true, "deletedAt": 1730000000000 }
+{ "format": "misnotas", "version": 2, "type": "note", "id": "<uuid>", "deleted": true, "deletedAt": 1730000000000, "auth": "<base64 AES-GCM de 'deleted:<deletedAt>' con AAD 'tombstone:<type>:<uuid>'>" }
 ```
+
+`auth` demuestra que la lápida la creó un dispositivo con la clave. Una lápida sin `auth` (versiones antiguas, o fabricada por el servidor) nunca borra nada de forma definitiva: una nota pasa a la papelera y una carpeta se conserva y se vuelve a subir.
 
 Las lápidas no se eliminan, para que los dispositivos que estaban sin conexión también se enteren del borrado.
 
@@ -83,9 +85,9 @@ Las lápidas no se eliminan, para que los dispositivos que estaban sin conexión
 3. Descarga solo los ficheros cuyo ETag cambió y fusiona:
    - Sin cambios locales → se acepta la versión remota.
    - Con cambios locales y contenido distinto → gana la de `updatedAt` más reciente y la otra se guarda como nota nueva con el sufijo " (conflicto)".
-   - Lápida → se borra en local, salvo que haya cambios locales sin subir.
+   - Lápida verificada → se borra en local, salvo que haya cambios locales sin subir.
 4. Sube con `If-Match: "<etag>"` (o `If-None-Match: *` si es nuevo). Si el servidor responde `412`, vuelve al paso 2.
-5. Un fichero conocido que desaparece del servidor se considera borrado.
+5. La app nunca borra ficheros de notas o carpetas (deja lápidas). Si uno conocido desaparece del servidor, la nota pasa a la papelera y la carpeta se conserva, y ambas se vuelven a subir.
 
 ## Compatibilidad con v1
 

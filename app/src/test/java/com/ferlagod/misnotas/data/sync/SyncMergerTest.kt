@@ -117,6 +117,22 @@ class SyncMergerTest {
     }
 
     @Test
+    fun folderTombstones_onlyVerifiedOnesDelete() {
+        val synced = FolderEntity(id = "f", name = "carpeta", updatedAt = 100, syncStatus = SyncStatus.SYNCED, remoteEtag = "e1")
+        assertEquals(MergeAction.DeleteLocal, SyncMerger.resolveFolder(synced, RemoteRecord.Tombstone("f", 1, verified = true), "e2"))
+        assertEquals(MergeAction.Reupload("e2"), SyncMerger.resolveFolder(synced, RemoteRecord.Tombstone("f", 1, verified = false), "e2"))
+        val pending = synced.copy(syncStatus = SyncStatus.PENDING_DELETE)
+        assertEquals(MergeAction.DeleteLocal, SyncMerger.resolveFolder(pending, RemoteRecord.Tombstone("f", 1, verified = false), "e2"))
+    }
+
+    @Test
+    fun missingRemoteFolder_isReuploadedNotDeleted() {
+        assertEquals(MissingRemoteAction.REUPLOAD, SyncMerger.resolveMissingRemoteFolder(SyncStatus.SYNCED, "e1"))
+        assertEquals(MissingRemoteAction.MARK_FOR_UPLOAD, SyncMerger.resolveMissingRemoteFolder(SyncStatus.SYNCED, null))
+        assertEquals(MissingRemoteAction.DELETE_LOCAL, SyncMerger.resolveMissingRemoteFolder(SyncStatus.PENDING_DELETE, "e1"))
+    }
+
+    @Test
     fun folderLastWriteWins() {
         val local = FolderEntity(id = "f", name = "local", updatedAt = 100, syncStatus = SyncStatus.PENDING_UPLOAD)
         val newer = RemoteRecord.Live(FolderEntity(id = "f", name = "remota", updatedAt = 200))
