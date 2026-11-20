@@ -87,7 +87,17 @@ object SyncMerger {
                 if (local == null) return MergeAction.SaveRemote(remoteNote)
 
                 return when (local.syncStatus) {
-                    SyncStatus.SYNCED -> MergeAction.SaveRemote(remoteNote)
+                    // Sin cambios locales se acepta lo remoto, salvo que sea más antiguo que lo que
+                    // ya tenemos: eso es una vuelta atrás (el servidor reutiliza un fichero viejo o
+                    // se restauró una versión anterior) y no debe aplicarse en silencio.
+                    SyncStatus.SYNCED -> when {
+                        remoteNote.updatedAt >= local.updatedAt -> MergeAction.SaveRemote(remoteNote)
+                        local.title == remoteNote.title && local.content == remoteNote.content -> MergeAction.Reupload(etag)
+                        else -> MergeAction.Conflict(
+                            main = local.copy(remoteEtag = etag, syncStatus = SyncStatus.PENDING_UPLOAD),
+                            copy = copyOf(remoteNote)
+                        )
+                    }
 
                     SyncStatus.PENDING_DELETE ->
                         if (remoteNote.updatedAt > local.updatedAt) MergeAction.SaveRemote(remoteNote)
@@ -158,8 +168,11 @@ object SyncMerger {
 
             is RemoteRecord.Live -> {
                 val remoteFolder = remote.entity.copy(syncStatus = SyncStatus.SYNCED, remoteEtag = etag)
-                if (local == null || local.syncStatus == SyncStatus.SYNCED) {
-                    return MergeAction.SaveRemote(remoteFolder)
+                if (local == null) return MergeAction.SaveRemote(remoteFolder)
+                if (local.syncStatus == SyncStatus.SYNCED) {
+                    // Una versión más antigua que la local es una vuelta atrás: se reescribe la local.
+                    return if (remoteFolder.updatedAt >= local.updatedAt) MergeAction.SaveRemote(remoteFolder)
+                    else MergeAction.Reupload(etag)
                 }
                 // Carpetas: gana la última modificación (no merece la pena duplicarlas).
                 return if (remoteFolder.updatedAt > local.updatedAt) MergeAction.SaveRemote(remoteFolder)

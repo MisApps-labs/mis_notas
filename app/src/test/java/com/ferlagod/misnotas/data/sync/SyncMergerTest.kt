@@ -38,6 +38,23 @@ class SyncMergerTest {
     }
 
     @Test
+    fun syncedLocal_olderRemoteIsNotAppliedSilently() {
+        val local = note(content = "actual", updatedAt = 200)
+        val rollback = SyncMerger.resolveNote(local, live(note(content = "viejo", updatedAt = 100)), "e2", newId) as MergeAction.Conflict
+        assertEquals("actual", rollback.main.content)
+        assertEquals(SyncStatus.PENDING_UPLOAD, rollback.main.syncStatus)
+        assertEquals("e2", rollback.main.remoteEtag)
+        assertEquals("viejo", rollback.copy.content)
+
+        val sameText = SyncMerger.resolveNote(local, live(note(content = "actual", updatedAt = 100).copy(isPinned = true)), "e2", newId)
+        assertEquals(MergeAction.Reupload("e2"), sameText)
+
+        val folder = FolderEntity(id = "f", name = "actual", updatedAt = 200, syncStatus = SyncStatus.SYNCED, remoteEtag = "e1")
+        val oldFolder = RemoteRecord.Live(FolderEntity(id = "f", name = "vieja", updatedAt = 100))
+        assertEquals(MergeAction.Reupload("e2"), SyncMerger.resolveFolder(folder, oldFolder, "e2"))
+    }
+
+    @Test
     fun identicalPendingChangesOnlyUpdateEtag() {
         val local = note(status = SyncStatus.PENDING_UPLOAD, etag = null)
         assertEquals(MergeAction.KeepLocal("e2"), SyncMerger.resolveNote(local, live(note()), "e2", newId))

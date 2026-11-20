@@ -83,7 +83,7 @@ Las lápidas no se eliminan, para que los dispositivos que estaban sin conexión
 1. Antes de sincronizar, descarga `keyinfo.json` y verifica la clave. Si falta o no coincide, aborta.
 2. Lista la carpeta con `PROPFIND Depth: 1` y compara cada `getetag` con el último ETag conocido.
 3. Descarga solo los ficheros cuyo ETag cambió y fusiona:
-   - Sin cambios locales → se acepta la versión remota.
+   - Sin cambios locales → se acepta la versión remota, salvo que su `updatedAt` sea anterior al local (una vuelta atrás): entonces se conserva la local y se vuelve a subir, y si el texto difiere la remota queda como copia " (conflicto)".
    - Con cambios locales y contenido distinto → gana la de `updatedAt` más reciente y la otra se guarda como nota nueva con el sufijo " (conflicto)".
    - Lápida verificada → se borra en local, salvo que haya cambios locales sin subir.
 4. Sube con `If-Match: "<etag>"` (o `If-None-Match: *` si es nuevo). Si el servidor responde `412`, vuelve al paso 2.
