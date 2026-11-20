@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.core.content.IntentCompat
+import androidx.core.os.BundleCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -106,6 +107,12 @@ class MainActivity : ComponentActivity() {
     private var authInProgress = false
     private var backgroundSince = 0L
 
+    /**
+     * Contenido compartido desde otra app mientras la app estaba bloqueada. No se crea la nota
+     * hasta desbloquear: cualquier app puede enviar este intent sin que el usuario lo vea.
+     */
+    private var pendingShare: Intent? = null
+
     private val confirmCredential = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         onAuthResult(result.resultCode == Activity.RESULT_OK)
     }
@@ -121,6 +128,7 @@ class MainActivity : ComponentActivity() {
 
         appLocked = savedInstanceState?.getBoolean(STATE_LOCKED)
             ?: (viewModel.settings.value.appLock && AppLock.isAvailable(this))
+        pendingShare = savedInstanceState?.let { BundleCompat.getParcelable(it, STATE_PENDING_SHARE, Intent::class.java) }
         if (savedInstanceState == null) handleIntent(intent)
 
         setContent {
@@ -169,6 +177,11 @@ class MainActivity : ComponentActivity() {
         }
         backgroundSince = 0
         if (appLocked && lockEnabled) requestUnlock() else appLocked = false
+        // Si el bloqueo se desactivó entretanto, lo compartido ya no tiene que esperar.
+        if (!appLocked) pendingShare?.let { share ->
+            pendingShare = null
+            handleIntent(share)
+        }
         // Sincroniza al volver a la app para traer cambios de otros dispositivos.
         viewModel.triggerSync()
     }
@@ -181,6 +194,7 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_LOCKED, appLocked)
+        pendingShare?.let { outState.putParcelable(STATE_PENDING_SHARE, it) }
     }
 
     private var pendingAuthCallback: ((Boolean) -> Unit)? = null
@@ -200,7 +214,13 @@ class MainActivity : ComponentActivity() {
 
     private fun onAuthResult(success: Boolean) {
         authInProgress = false
-        if (success) appLocked = false
+        if (success) {
+            appLocked = false
+            pendingShare?.let { share ->
+                pendingShare = null
+                handleIntent(share)
+            }
+        }
         pendingAuthCallback?.invoke(success)
         pendingAuthCallback = null
     }
@@ -213,6 +233,11 @@ class MainActivity : ComponentActivity() {
     /** Accesos directos y contenido compartido desde otras apps. */
     private fun handleIntent(intent: Intent?) {
         intent ?: return
+        if (appLocked && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE)) {
+            pendingShare = Intent(intent)
+            intent.action = null
+            return
+        }
         when (intent.action) {
             ACTION_NEW_NOTE -> viewModel.requestNavigation(PendingNavigation.NewNote)
             Intent.ACTION_SEND -> {
@@ -235,6 +260,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_NEW_NOTE = "com.ferlagod.misnotas.action.NEW_NOTE"
         private const val STATE_LOCKED = "app_locked"
+        private const val STATE_PENDING_SHARE = "pending_share"
     }
 }
 
