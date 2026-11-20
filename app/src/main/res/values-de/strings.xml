@@ -14,7 +14,7 @@
     <string name="cd_back">Zurück</string>
     <string name="cd_settings">Einstellungen</string>
     <string name="cd_toggle_password">Passwort ein- oder ausblenden</string>
-    <string name="cd_lock">Sperren</string>
+    <string name="cd_lock">Sperren und Synchronisierung pausieren</string>
     <string name="new_folder">Neuer Ordner</string>
     <string name="new_subfolder">Neuer Unterordner</string>
     <string name="edit_folder">Ordner bearbeiten</string>
@@ -38,7 +38,7 @@
     <string name="drop_to_top_level">Hier ablegen: oberste Ebene</string>
     <string name="delete_folder_title">Ordner löschen?</string>
     <string name="delete_folder_message">Der Ordner „%1$s“ wird gelöscht. Seine Notizen bleiben erhalten und erscheinen unter „Alle Notizen“.</string>
-    <string name="login_subtitle_unlock">Gib dein Master-Passwort ein, um deine Notizen zu entschlüsseln</string>
+    <string name="login_subtitle_unlock">Gib dein Master-Passwort ein, um deine Notizen zu öffnen und die verschlüsselte Synchronisierung fortzusetzen</string>
     <string name="login_subtitle_setup">Sichere Synchronisierung mit Nextcloud und Ende-zu-Ende-Verschlüsselung</string>
     <string name="section_server">WEBDAV-/NEXTCLOUD-SERVER</string>
     <string name="server_hint">https://cloud.beispiel.de</string>

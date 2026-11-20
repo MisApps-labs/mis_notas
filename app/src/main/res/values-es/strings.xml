@@ -14,7 +14,7 @@
     <string name="cd_back">Volver</string>
     <string name="cd_settings">Ajustes</string>
     <string name="cd_toggle_password">Mostrar u ocultar contraseña</string>
-    <string name="cd_lock">Bloquear</string>
+    <string name="cd_lock">Bloquear y pausar la sincronización</string>
     <string name="new_folder">Nueva carpeta</string>
     <string name="new_subfolder">Nueva subcarpeta</string>
     <string name="edit_folder">Editar carpeta</string>
@@ -38,7 +38,7 @@
     <string name="drop_to_top_level">Suelta aquí: nivel principal</string>
     <string name="delete_folder_title">¿Eliminar carpeta?</string>
     <string name="delete_folder_message">Se eliminará la carpeta «%1$s». Las notas que contiene no se borrarán y permanecerán en «Todas las notas».</string>
-    <string name="login_subtitle_unlock">Introduce tu contraseña maestra para descifrar tus notas</string>
+    <string name="login_subtitle_unlock">Introduce tu contraseña maestra para abrir tus notas y reanudar la sincronización cifrada</string>
     <string name="login_subtitle_setup">Sincronización segura con Nextcloud y cifrado de extremo a extremo</string>
     <string name="section_server">SERVIDOR WEBDAV / NEXTCLOUD</string>
     <string name="server_hint">https://nube.ejemplo.com</string>

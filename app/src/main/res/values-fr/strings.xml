@@ -14,7 +14,7 @@
     <string name="cd_back">Retour</string>
     <string name="cd_settings">Paramètres</string>
     <string name="cd_toggle_password">Afficher ou masquer le mot de passe</string>
-    <string name="cd_lock">Verrouiller</string>
+    <string name="cd_lock">Verrouiller et suspendre la synchronisation</string>
     <string name="new_folder">Nouveau dossier</string>
     <string name="new_subfolder">Nouveau sous-dossier</string>
     <string name="edit_folder">Modifier le dossier</string>
@@ -38,7 +38,7 @@
     <string name="drop_to_top_level">Déposer ici : niveau principal</string>
     <string name="delete_folder_title">Supprimer le dossier ?</string>
     <string name="delete_folder_message">Le dossier « %1$s » sera supprimé. Ses notes ne seront pas supprimées et resteront dans « Toutes les notes ».</string>
-    <string name="login_subtitle_unlock">Saisissez votre mot de passe principal pour déchiffrer vos notes</string>
+    <string name="login_subtitle_unlock">Saisissez votre mot de passe principal pour ouvrir vos notes et reprendre la synchronisation chiffrée</string>
     <string name="login_subtitle_setup">Synchronisation sécurisée avec Nextcloud et chiffrement de bout en bout</string>
     <string name="section_server">SERVEUR WEBDAV / NEXTCLOUD</string>
     <string name="server_hint">https://cloud.exemple.fr</string>

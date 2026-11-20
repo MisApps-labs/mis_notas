@@ -92,7 +92,7 @@ Instala la app en el otro dispositivo y conéctalo con la **misma cuenta y la mi
 - Las credenciales y la clave se guardan en el dispositivo con `EncryptedSharedPreferences` (Android Keystore).
 - Las notas **no** se incluyen en la copia de seguridad en la nube de Google.
 
-Lo que **no** protege: el servidor puede ver cuántas notas tienes, su tamaño aproximado y cuándo cambian. En el teléfono las notas se guardan sin cifrar dentro del almacenamiento privado de la app, que Android protege con el cifrado del propio dispositivo.
+Lo que **no** protege: el servidor puede ver cuántas notas tienes, su tamaño aproximado y cuándo cambian. En el teléfono las notas se guardan sin cifrar dentro del almacenamiento privado de la app, que Android protege con el cifrado del propio dispositivo. El botón del candado oculta las notas y pausa la sincronización hasta que vuelvas a escribir la contraseña maestra, pero no las cifra en el teléfono.
 
 Detalles técnicos en [SECURITY.md](SECURITY.md) y en el [formato de sincronización](docs/SYNC_FORMAT.md).
 
