@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 ferlagod
-// Mis Notas — https://github.com/ferlagod/mis_notas
+// Mis Notas — https://github.com/MisApps-labs/mis_notas
 
 package com.ferlagod.misnotas.ui.screen
 
@@ -905,7 +905,7 @@ private fun AboutSection() {
     }
 }
 
-private const val REPO_URL = "https://github.com/ferlagod/mis_notas"
+private const val REPO_URL = "https://github.com/MisApps-labs/mis_notas"
 
 @Composable
 private fun SettingsTextField(

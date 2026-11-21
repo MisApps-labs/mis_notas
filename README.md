@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="Licencia: GPL v3" src="https://img.shields.io/badge/licencia-GPLv3-blue.svg"></a>
-  <a href="https://github.com/ferlagod/mis_notas/actions/workflows/android.yml"><img alt="CI" src="https://github.com/ferlagod/mis_notas/actions/workflows/android.yml/badge.svg"></a>
+  <a href="https://github.com/MisApps-labs/mis_notas/actions/workflows/android.yml"><img alt="CI" src="https://github.com/MisApps-labs/mis_notas/actions/workflows/android.yml/badge.svg"></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84.svg">
 </p>
 
@@ -22,8 +22,8 @@ Mis Notas combina un diseño limpio con la organización por carpetas y el Markd
 
 Además de esta aplicación para Android, puedes acceder a tus notas sincronizadas en otros dispositivos utilizando:
 
-- 🖥️ **[App para escritorio](https://github.com/ferlagod/mis_notas_desktop)** (Windows, macOS, Linux).
-- 🌐 **[Extensión para el navegador](https://github.com/ferlagod/mis_notas_extensiones)** (Chromium y Firefox).
+- 🖥️ **[App para escritorio](https://github.com/MisApps-labs/mis_notas_desktop)** (Windows, macOS, Linux).
+- 🌐 **[Extensión para el navegador](https://github.com/MisApps-labs/mis_notas_extensiones)** (Chromium y Firefox).
 
 ## Capturas
 
@@ -62,7 +62,7 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 
 ## Instalación
 
-1. Descarga el último `.apk` desde la página de [Releases](https://github.com/ferlagod/mis_notas/releases).
+1. Descarga el último `.apk` desde la página de [Releases](https://github.com/MisApps-labs/mis_notas/releases).
 2. Ábrelo en tu teléfono y permite la instalación desde esa fuente si Android te lo pide.
 
 Requisitos: Android 8.0 (API 26) o superior.
@@ -111,7 +111,7 @@ Detalles técnicos en [SECURITY.md](SECURITY.md) y en el [formato de sincronizac
 Necesitas JDK 21 y el Android SDK (Android Studio lo instala todo).
 
 ```bash
-git clone https://github.com/ferlagod/mis_notas.git
+git clone https://github.com/MisApps-labs/mis_notas.git
 cd mis_notas
 ./gradlew assembleDebug          # APK de depuración en app/build/outputs/apk/debug/
 ./gradlew testDebugUnitTest      # tests unitarios
@@ -152,7 +152,7 @@ app/src/main/res/values*/strings.xml   Textos (inglés por defecto; es, fr, de, 
 - Las imágenes que ya no usa ninguna nota se borran del teléfono, pero **no del servidor**.
 - Solo admite imágenes como adjuntos.
 
-¿Ideas o fallos? Abre una [incidencia](https://github.com/ferlagod/mis_notas/issues).
+¿Ideas o fallos? Abre una [incidencia](https://github.com/MisApps-labs/mis_notas/issues).
 
 ## Contribuir
 
