@@ -83,7 +83,7 @@ fun reconcileEdit(old: String, new: String, cursor: Int, presentation: MarkdownP
     val closings = StringBuilder()
     val openings = StringBuilder()
     for (t in presentation.inlineTokens) {
-        if (t.kind == InlineKind.IMAGE || t.kind == InlineKind.AUTOLINK) continue
+        if (t.kind == InlineKind.IMAGE || t.kind == InlineKind.AUTOLINK || t.kind == InlineKind.TAG) continue
         if (t.start >= start && t.end <= end) continue
         for (x in maxOf(t.start, start) until minOf(t.contentStart, end)) openings.append(old[x])
         for (x in maxOf(t.contentEnd, start) until minOf(t.end, end)) closings.append(old[x])
@@ -301,7 +301,7 @@ fun activeInlineKinds(presentation: MarkdownPresentation, selStart: Int, selEnd:
     val s = minOf(selStart, selEnd)
     val e = maxOf(selStart, selEnd)
     return presentation.inlineTokens
-        .filter { s >= it.contentStart && e <= it.contentEnd && (s < it.contentEnd || s == e) }
+        .filter { it.kind != InlineKind.TAG && s >= it.contentStart && e <= it.contentEnd && (s < it.contentEnd || s == e) }
         .map { if (it.kind == InlineKind.AUTOLINK) InlineKind.LINK else it.kind }
         .toSet()
 }

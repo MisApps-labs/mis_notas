@@ -255,7 +255,7 @@
     <string name="auto_backup_folder_none">Non sélectionné</string>
     <string name="section_sync">Synchronisation Nextcloud</string>
     <string name="edit_account">Changer de compte ou de mot de passe maître</string>
-    <string name="search_everywhere_hint">Rechercher dans toutes les notes</string>
+    <string name="search_everywhere_hint">Rechercher : mots, \"phrase\", -exclure, #étiquette</string>
     <string name="shortcut_new_note_short">Nouvelle note</string>
     <string name="shortcut_new_note_long">Écrire une nouvelle note</string>
     <plurals name="export_done">
@@ -375,4 +375,5 @@
     <string name="diag_foreign_files">Le dossier contient %1$s fichiers qui ne viennent pas de Mis Notas. Utilisez plutôt un dossier dédié.</string>
     <string name="diag_existing_vault">Il y a déjà des notes chiffrées ici : utilisez le même mot de passe principal que sur vos autres appareils.</string>
     <string name="diag_empty_folder">Le dossier est prêt ; un nouveau coffre chiffré sera créé.</string>
+    <string name="tags">Étiquettes</string>
 </resources>

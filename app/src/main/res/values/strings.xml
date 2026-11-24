@@ -250,7 +250,7 @@
     <string name="auto_backup_folder_none">Not selected</string>
     <string name="section_sync">Nextcloud sync</string>
     <string name="edit_account">Change account or master password</string>
-    <string name="search_everywhere_hint">Search all notes</string>
+    <string name="search_everywhere_hint">Search: words, \"phrase\", -exclude, #tag</string>
     <string name="shortcut_new_note_short">New note</string>
     <string name="shortcut_new_note_long">Write a new note</string>
     <plurals name="export_done">
@@ -362,4 +362,5 @@
     <string name="diag_foreign_files">The folder has %1$s files that aren’t from Mis Notas. Better use a dedicated folder.</string>
     <string name="diag_existing_vault">There are already encrypted notes here: use the same master password as on your other devices.</string>
     <string name="diag_empty_folder">The folder is ready; a new encrypted vault will be created.</string>
+    <string name="tags">Tags</string>
 </resources>

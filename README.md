@@ -48,7 +48,8 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - **Editor cómodo**: deshacer/rehacer, las listas continúan solas al pulsar Intro, barra de formato que actúa sobre la línea o la selección, contador de palabras y tiempo de lectura.
 - **Imágenes** adjuntas (varias a la vez; se comprimen a WebP y se sincronizan como ficheros cifrados aparte) con visor a pantalla completa y zoom.
 - **Selección múltiple** con pulsación larga: fijar, cambiar color, mover de carpeta o borrar varias notas a la vez, y **"Deshacer"** al mandar algo a la papelera.
-- **Vista de cuadrícula o lista**, orden por fecha o título, búsqueda instantánea que ignora acentos y resalta los resultados, progreso de las listas de tareas en cada tarjeta.
+- **Etiquetas** con `#hashtags` en el propio texto (`#trabajo`, `#viaje/2026` con subetiquetas), como en Obsidian o Bear: aparecen en el inicio con su recuento, en cada tarjeta y resaltadas en la nota.
+- **Vista de cuadrícula o lista**, orden por fecha o título, progreso de las listas de tareas en cada tarjeta y **búsqueda instantánea** que ignora acentos, resalta los resultados y admite operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
 - **Compartir**: envía notas a otras apps, cópialas o duplícalas, y crea notas desde "Compartir" en cualquier app (texto o imágenes). Acceso directo "Nueva nota" manteniendo pulsado el icono.
 - **Copia de seguridad en Markdown**: exporta todo a un ZIP (carpetas, imágenes y metadatos) e importa `.zip`, `.md` y `.txt`. Compatible con Obsidian, Joplin, etc.
 - **Bloqueo de la app** con huella, cara o PIN del dispositivo, y contenido oculto en las apps recientes.

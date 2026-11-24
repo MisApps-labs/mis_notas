@@ -13,7 +13,7 @@ package com.ferlagod.misnotas.ui.markdown
  * y qué estilo lleva cada tramo ([StyleRange]). Son funciones puras para poder probarlas.
  */
 
-enum class InlineKind { BOLD, ITALIC, STRIKE, CODE, LINK, IMAGE, AUTOLINK }
+enum class InlineKind { BOLD, ITALIC, STRIKE, CODE, LINK, IMAGE, AUTOLINK, TAG }
 
 /**
  * Elemento en línea en [start, end). El contenido visible está en [contentStart, contentEnd);
@@ -55,6 +55,7 @@ object InlineMarkdown {
                     ?: delimited(text, i, to, "_", InlineKind.ITALIC)
                 '~' -> if (text.startsWith("~~", i)) delimited(text, i, to, "~~", InlineKind.STRIKE) else null
                 'h' -> autolink(text, i, from, to)
+                '#' -> tag(text, i, from, to)
                 else -> null
             }
             if (token == null) {
@@ -149,6 +150,13 @@ object InlineMarkdown {
         )
     }
 
+    /** `#etiqueta` (ver [com.ferlagod.misnotas.util.Tags]). */
+    private fun tag(text: String, i: Int, from: Int, to: Int): InlineToken? {
+        val end = com.ferlagod.misnotas.util.Tags.tagEndAt(text, i, from, to)
+        if (end < 0) return null
+        return InlineToken(InlineKind.TAG, i, end, i, end, text.substring(i + 1, end))
+    }
+
     private fun autolink(text: String, i: Int, from: Int, to: Int): InlineToken? {
         if (!text.startsWith("http://", i) && !text.startsWith("https://", i)) return null
         if (i > from && text[i - 1].isLetterOrDigit()) return null
@@ -181,7 +189,7 @@ enum class ReplacementKind {
 /** El tramo original [start, end) se muestra como [display] ("" = oculto). */
 data class Replacement(val start: Int, val end: Int, val display: String, val kind: ReplacementKind)
 
-enum class MdStyle { BOLD, ITALIC, STRIKE, CODE, LINK, HEADING, MARKER, TASK_DONE, QUOTE, CODE_BLOCK, FENCE, RULE, IMAGE }
+enum class MdStyle { BOLD, ITALIC, STRIKE, CODE, LINK, HEADING, MARKER, TASK_DONE, QUOTE, CODE_BLOCK, FENCE, RULE, IMAGE, TAG }
 
 /** Estilo sobre el tramo original [start, end). [level] es el nivel de título; [url] el de un enlace. */
 data class StyleRange(val start: Int, val end: Int, val style: MdStyle, val level: Int = 0, val url: String? = null)
@@ -311,6 +319,7 @@ object MarkdownPresenter {
                     styles += StyleRange(t.start, t.end, MdStyle.IMAGE)
                 }
                 InlineKind.AUTOLINK -> styles += StyleRange(t.start, t.end, MdStyle.LINK, url = t.url)
+                InlineKind.TAG -> styles += StyleRange(t.start, t.end, MdStyle.TAG, url = t.url)
                 else -> {
                     reps += Replacement(t.start, t.contentStart, "", ReplacementKind.INLINE)
                     reps += Replacement(t.contentEnd, t.end, "", ReplacementKind.INLINE)

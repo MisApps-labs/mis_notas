@@ -124,6 +124,8 @@ import com.ferlagod.misnotas.ui.theme.NoteColor
 import com.ferlagod.misnotas.ui.theme.getAccentColor
 import com.ferlagod.misnotas.ui.theme.isAppInDarkTheme
 import com.ferlagod.misnotas.ui.viewmodel.NotesFilter
+import com.ferlagod.misnotas.ui.viewmodel.TagCount
+import androidx.compose.foundation.layout.FlowRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,6 +136,7 @@ fun FoldersScreen(
     totalNotesCount: Int,
     pinnedNotesCount: Int,
     trashNotesCount: Int,
+    tags: List<TagCount>,
     syncState: SyncState,
     snackbarHostState: SnackbarHostState,
     onSelectFilter: (NotesFilter) -> Unit,
@@ -447,6 +450,33 @@ fun FoldersScreen(
                                     onDelete = { folderToDelete = folder }
                                 )
                                 if (index < tree.lastIndex && !isDragged && !isDropTarget) RowDivider(start = (58 + level * 18).dp)
+                            }
+                        }
+                    }
+                }
+
+                if (tags.isNotEmpty()) {
+                    item(key = "tags") {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        GroupLabel(stringResource(R.string.tags))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            tags.forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    onClick = { onSelectFilter(NotesFilter.Tag(tag.tag)) }
+                                ) {
+                                    Text(
+                                        text = "#${tag.tag}  ${tag.count}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = primary,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                }
                             }
                         }
                     }

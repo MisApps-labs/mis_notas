@@ -293,6 +293,7 @@ private fun AppNavigationHost(
     val pendingNavigation by viewModel.pendingNavigation.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val safetyCopyTime by viewModel.safetyCopyTime.collectAsStateWithLifecycle()
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val loginFlow by viewModel.loginFlow.collectAsStateWithLifecycle()
     val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
     val trustedCerts by viewModel.trustedCerts.collectAsStateWithLifecycle()
@@ -396,6 +397,7 @@ private fun AppNavigationHost(
                 totalNotesCount = totalCount,
                 pinnedNotesCount = pinnedCount,
                 trashNotesCount = trashNotesCount,
+                tags = allTags,
                 syncState = syncState,
                 snackbarHostState = snackbarHostState,
                 onSelectFilter = { filter ->

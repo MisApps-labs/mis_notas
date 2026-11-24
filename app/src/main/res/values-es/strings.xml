@@ -255,7 +255,7 @@
     <string name="auto_backup_folder_none">Sin elegir</string>
     <string name="section_sync">Sincronización con Nextcloud</string>
     <string name="edit_account">Cambiar cuenta o contraseña maestra</string>
-    <string name="search_everywhere_hint">Buscar en todas las notas</string>
+    <string name="search_everywhere_hint">Buscar: palabras, \"frase\", -excluir, #etiqueta</string>
     <string name="shortcut_new_note_short">Nueva nota</string>
     <string name="shortcut_new_note_long">Escribir una nota nueva</string>
     <plurals name="export_done">
@@ -375,4 +375,5 @@
     <string name="diag_foreign_files">La carpeta tiene %1$s ficheros que no son de Mis Notas. Mejor usa una carpeta propia.</string>
     <string name="diag_existing_vault">Aquí ya hay notas cifradas: usa la misma contraseña maestra que en tus otros dispositivos.</string>
     <string name="diag_empty_folder">La carpeta está lista; se creará una bóveda cifrada nueva.</string>
+    <string name="tags">Etiquetas</string>
 </resources>

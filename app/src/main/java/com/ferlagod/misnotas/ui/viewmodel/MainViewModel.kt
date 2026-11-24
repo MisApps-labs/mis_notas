@@ -44,6 +44,8 @@ import com.ferlagod.misnotas.ui.markdown.markdownPreview
 import com.ferlagod.misnotas.ui.theme.NoteColor
 import com.ferlagod.misnotas.util.ImageCompressor
 import com.ferlagod.misnotas.util.LanguageManager
+import com.ferlagod.misnotas.util.SearchQuery
+import com.ferlagod.misnotas.util.Tags
 import com.ferlagod.misnotas.util.TextSearch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +59,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -74,7 +78,12 @@ sealed interface NotesFilter {
     data object Pinned : NotesFilter
     data object Trash : NotesFilter
     data class Folder(val folderId: String, val folderName: String) : NotesFilter
+    /** Notas con la etiqueta [tag] (o una subetiqueta suya), ver [Tags]. */
+    data class Tag(val tag: String) : NotesFilter
 }
+
+/** Etiqueta con el número de notas que la usan. */
+data class TagCount(val tag: String, val key: String, val count: Int)
 
 /** Avisos puntuales para la interfaz (snackbars). */
 sealed interface UiEvent {
@@ -191,10 +200,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .map { list -> list.associateBy { it.id } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    /** Índice de búsqueda (texto normalizado sin acentos), recalculado solo cuando cambian las notas. */
-    private val searchIndex = combine(allActiveNotes, trashNotes) { active, trash ->
-        (active + trash).associate { it.id to TextSearch.normalize(it.title + "\n" + markdownPlainText(it.content)) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    /** Texto normalizado (sin acentos) y etiquetas de una nota, para buscar y filtrar. */
+    private class SearchEntry(val haystack: String, val tagKeys: Set<String>)
+
+    private fun searchEntry(note: NoteEntity) = SearchEntry(
+        TextSearch.normalize(note.title + "\n" + markdownPlainText(note.content)),
+        Tags.extract(note.content).mapTo(HashSet()) { Tags.key(it) }
+    )
+
+    /** Índice de búsqueda, recalculado solo para las notas que cambian. */
+    private val searchIndex = combine(allActiveNotes, trashNotes) { active, trash -> active + trash }
+        .scan(emptyMap<String, Pair<NoteEntity, SearchEntry>>()) { previous, notes ->
+            notes.associate { note ->
+                val cached = previous[note.id]
+                note.id to (if (cached != null && cached.first.content == note.content && cached.first.title == note.title) cached.copy(first = note)
+                else note to searchEntry(note))
+            }
+        }
+        .map { m -> m.mapValues { it.value.second } }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** Todas las etiquetas de las notas activas, con su recuento. */
+    val allTags: StateFlow<List<TagCount>> = allActiveNotes
+        .map { notes ->
+            val counts = HashMap<String, Pair<String, Int>>()
+            for (note in notes) for (tag in Tags.extract(note.content)) {
+                val k = Tags.key(tag)
+                counts[k] = (counts[k]?.first ?: tag) to ((counts[k]?.second ?: 0) + 1)
+            }
+            counts.map { (k, v) -> TagCount(v.first, k, v.second) }.sortedBy { it.key }
+        }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val displayedNotes: StateFlow<List<NoteEntity>> = combine(
         combine(allActiveNotes, trashNotes, ::Pair),
@@ -203,20 +241,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settings.map { it.sortOrder }.distinctUntilChanged(),
         searchIndex
     ) { (activeNotes, trashList), filter, query, sortOrder, index ->
+        fun entry(note: NoteEntity) = index[note.id] ?: searchEntry(note)
         val filtered = when (filter) {
             is NotesFilter.All -> activeNotes
             is NotesFilter.Pinned -> activeNotes.filter { it.isPinned }
             is NotesFilter.Trash -> trashList
             is NotesFilter.Folder -> activeNotes.filter { it.folderId == filter.folderId }
+            is NotesFilter.Tag -> activeNotes.filter { Tags.matches(entry(it).tagKeys, filter.tag) }
         }
-        val terms = TextSearch.terms(query)
-        val matching = if (terms.isEmpty()) filtered else filtered.filter { note ->
-            val haystack = index[note.id] ?: TextSearch.normalize(note.title + "\n" + markdownPlainText(note.content))
-            terms.all { haystack.contains(it) }
+        val parsed = SearchQuery.parse(query)
+        val matching = if (parsed.isEmpty) filtered else filtered.filter { note ->
+            val e = entry(note)
+            parsed.matches(e.haystack, e.tagKeys)
         }
         if (filter is NotesFilter.Trash) matching.sortedByDescending { it.updatedAt }
         else matching.sortedWith(compareByDescending<NoteEntity> { it.isPinned }.then(sortOrder.comparator()))
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalActiveNotesCount = allActiveNotes.map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)

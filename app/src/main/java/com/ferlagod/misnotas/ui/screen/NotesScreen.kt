@@ -129,6 +129,8 @@ import com.ferlagod.misnotas.ui.theme.isAppInDarkTheme
 import com.ferlagod.misnotas.ui.theme.toCardBackground
 import com.ferlagod.misnotas.ui.theme.toCardBorder
 import com.ferlagod.misnotas.ui.viewmodel.NotesFilter
+import com.ferlagod.misnotas.util.SearchQuery
+import com.ferlagod.misnotas.util.Tags
 import com.ferlagod.misnotas.util.TextSearch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -199,9 +201,10 @@ fun NotesScreen(
         is NotesFilter.Trash -> stringResource(R.string.trash)
         // El nombre se toma de la carpeta actual por si se ha renombrado o sincronizado.
         is NotesFilter.Folder -> foldersMap[currentFilter.folderId]?.name ?: currentFilter.folderName
+        is NotesFilter.Tag -> "#" + currentFilter.tag
     }
 
-    val searchTerms = remember(searchQuery) { TextSearch.terms(searchQuery) }
+    val searchTerms = remember(searchQuery) { SearchQuery.parse(searchQuery).highlights }
     val pinnedNotes = if (isTrashView) emptyList() else notes.filter { it.isPinned }
     val otherNotes = if (isTrashView) notes else notes.filter { !it.isPinned }
     val showSections = pinnedNotes.isNotEmpty() && otherNotes.isNotEmpty()
@@ -913,6 +916,18 @@ fun NoteCard(
                     text = stringResource(R.string.empty_note),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
+
+            val tags = remember(note.content) { Tags.extract(note.content) }
+            if (tags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = tags.take(4).joinToString("  ") { "#$it" } + if (tags.size > 4) "  +${tags.size - 4}" else "",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

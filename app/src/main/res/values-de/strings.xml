@@ -249,7 +249,7 @@
     <string name="auto_backup_folder_none">Nicht ausgewählt</string>
     <string name="section_sync">Nextcloud-Synchronisierung</string>
     <string name="edit_account">Konto oder Master-Passwort ändern</string>
-    <string name="search_everywhere_hint">Alle Notizen durchsuchen</string>
+    <string name="search_everywhere_hint">Suchen: Wörter, \"Satz\", -ausschließen, #Schlagwort</string>
     <string name="shortcut_new_note_short">Neue Notiz</string>
     <string name="shortcut_new_note_long">Neue Notiz schreiben</string>
     <plurals name="export_done">
@@ -361,4 +361,5 @@
     <string name="diag_foreign_files">Der Ordner enthält %1$s Dateien, die nicht von Mis Notas stammen. Nutze besser einen eigenen Ordner.</string>
     <string name="diag_existing_vault">Hier liegen bereits verschlüsselte Notizen: Verwende dasselbe Master-Passwort wie auf deinen anderen Geräten.</string>
     <string name="diag_empty_folder">Der Ordner ist bereit; ein neuer verschlüsselter Tresor wird angelegt.</string>
+    <string name="tags">Schlagwörter</string>
 </resources>

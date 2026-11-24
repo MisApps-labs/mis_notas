@@ -93,6 +93,9 @@ fun renderMarkdown(
             )
             MdStyle.FENCE -> builder.addStyle(SpanStyle(fontFamily = FontFamily.Monospace, color = colors.muted), start, end)
             MdStyle.RULE -> builder.addStyle(SpanStyle(color = colors.rule), start, end)
+            MdStyle.TAG -> builder.addStyle(
+                SpanStyle(color = colors.accent, fontWeight = FontWeight.SemiBold, background = colors.accent.copy(alpha = 0.10f)), start, end
+            )
             MdStyle.IMAGE -> builder.addStyle(
                 SpanStyle(color = colors.accent, background = colors.accent.copy(alpha = 0.10f)), start, end
             )
