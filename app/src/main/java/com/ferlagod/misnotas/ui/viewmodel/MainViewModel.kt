@@ -1038,6 +1038,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Comprime la imagen, la guarda como adjunto y devuelve la referencia Markdown
      * (`attachment://<id>`) para insertarla en la nota.
      */
+    /** El fichero supera [AttachmentStore.MAX_FILE_BYTES]. */
+    class AttachmentTooLargeException : Exception("Attachment too large")
+
+    /**
+     * Adjunta un fichero cualquiera (PDF, audio, documento…) tal cual, sin comprimir.
+     * Devuelve el enlace Markdown que se inserta en la nota.
+     */
+    suspend fun addFileAttachment(uri: Uri): String = withContext(Dispatchers.IO) {
+        val resolver = getApplication<Application>().contentResolver
+        var name = "file"
+        var size = -1L
+        resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, android.provider.OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                c.getString(0)?.takeIf { it.isNotBlank() }?.let { name = it }
+                if (!c.isNull(1)) size = c.getLong(1)
+            }
+        }
+        if (size > AttachmentStore.MAX_FILE_BYTES) throw AttachmentTooLargeException()
+        val bytes = resolver.openInputStream(uri)?.use { input ->
+            val out = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                total += n
+                if (total > AttachmentStore.MAX_FILE_BYTES) throw AttachmentTooLargeException()
+                out.write(buffer, 0, n)
+            }
+            out.toByteArray()
+        } ?: throw java.io.IOException("Cannot read $uri")
+        val mime = resolver.getType(uri)?.takeIf { it != "application/octet-stream" }
+            ?: AttachmentStore.mimeForName(name)
+            ?: AttachmentStore.detectMimeType(bytes, fallback = "application/octet-stream")
+        val id = UUID.randomUUID().toString()
+        attachmentStore.write(id, bytes)
+        attachmentDao.upsert(AttachmentEntity(id = id, mimeType = mime, size = bytes.size.toLong()))
+        AttachmentStore.fileLink(name, id)
+    }
+
     suspend fun addImageAttachment(uri: Uri): String {
         val bytes = ImageCompressor.compressImage(getApplication(), uri)
         val id = UUID.randomUUID().toString()

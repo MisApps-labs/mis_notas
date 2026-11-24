@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FormatBold
 import androidx.compose.material.icons.rounded.FormatItalic
@@ -256,6 +257,8 @@ fun NoteEditorScreen(
     onDuplicateNote: suspend (String) -> String?,
     onOpenNote: (String) -> Unit,
     onAddImage: suspend (Uri) -> String,
+    /** Adjunta un fichero cualquiera y devuelve su enlace Markdown. */
+    onAddFile: suspend (Uri) -> String = { throw UnsupportedOperationException() },
     /** Historial de versiones de la nota y cómo restaurar una. */
     observeRevisions: (String) -> kotlinx.coroutines.flow.Flow<List<com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity>> =
         { kotlinx.coroutines.flow.flowOf(emptyList()) },
@@ -618,6 +621,24 @@ fun NoteEditorScreen(
         }
     }
 
+    val fileTooLarge = stringResource(R.string.attachment_too_large, (AttachmentStore.MAX_FILE_BYTES / (1024 * 1024)).toInt())
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        coroutineScope.launch {
+            try {
+                val link = onAddFile(uri)
+                val before = textValue.text.substring(0, textValue.selection.min)
+                val lead = if (before.isEmpty() || before.endsWith("\n")) "" else "\n"
+                insert(lead + link + "\n")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("NoteEditor", "No se pudo adjuntar $uri", e)
+                Toast.makeText(context, if (e.javaClass.simpleName == "AttachmentTooLargeException") fileTooLarge else imageAddFailed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     val editorBackground = selectedColor.toEditorBackground(isDark)
     val plainBody = remember(textValue.text) { markdownPlainText(textValue.text) }
     val wordCount = remember(plainBody) {
@@ -800,7 +821,8 @@ fun NoteEditorScreen(
                     onRule = { insert(if (textValue.text.substring(0, textValue.selection.min).let { it.isEmpty() || it.endsWith("\n") }) "---\n" else "\n---\n") },
                     onImage = {
                         photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }
+                    },
+                    onFile = { filePickerLauncher.launch(arrayOf("*/*")) }
                 )
             }
         },
@@ -1267,13 +1289,13 @@ private fun shareNote(context: Context, title: String, content: String) {
             type = "text/plain"
         }
         1 -> Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
+            type = if (AttachmentStore.fileNames(content).isEmpty()) "image/*" else "*/*"
             putExtra(Intent.EXTRA_STREAM, uris.first())
             clipData = ClipData.newRawUri(null, uris.first())
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         else -> Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-            type = "image/*"
+            type = if (AttachmentStore.fileNames(content).isEmpty()) "image/*" else "*/*"
             putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
             val clip = ClipData.newRawUri(null, uris.first()).apply {
                 for (uri in uris.drop(1)) addItem(ClipData.Item(uri))
@@ -1343,7 +1365,8 @@ private fun FormattingToolbar(
     onCode: () -> Unit,
     onLink: () -> Unit,
     onRule: () -> Unit,
-    onImage: () -> Unit
+    onImage: () -> Unit,
+    onFile: () -> Unit
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val isHeading = activeBlock == LinePrefix.HEADING1 || activeBlock == LinePrefix.HEADING2 || activeBlock == LinePrefix.HEADING3
@@ -1393,6 +1416,7 @@ private fun FormattingToolbar(
             ToolbarButton(Icons.Rounded.FormatQuote, stringResource(R.string.fmt_quote), primary, onQuote, active = activeBlock == LinePrefix.QUOTE)
             ToolbarDivider()
             ToolbarButton(Icons.Rounded.Image, stringResource(R.string.fmt_image), primary, onImage)
+            ToolbarButton(Icons.Rounded.AttachFile, stringResource(R.string.fmt_file), primary, onFile)
             ToolbarButton(Icons.Rounded.Link, stringResource(R.string.fmt_link), primary, onLink, active = InlineKind.LINK in activeInline)
             ToolbarButton(Icons.Rounded.Code, stringResource(R.string.fmt_code), primary, onCode, active = InlineKind.CODE in activeInline)
             ToolbarButton(Icons.Rounded.HorizontalRule, stringResource(R.string.fmt_rule), primary, onRule)

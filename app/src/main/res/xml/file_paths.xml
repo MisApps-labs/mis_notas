@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="attachments" path="attachments/" />
+    <!-- Copia temporal con su nombre original para abrir un adjunto con otra app -->
+    <cache-path name="open" path="open/" />
 </paths>
-

@@ -382,4 +382,8 @@
     <string name="reminder_remove">Remove reminder</string>
     <string name="reminder_title">Reminder time</string>
     <string name="next">Next</string>
+    <string name="fmt_file">Attach file</string>
+    <string name="attachment_too_large">The file is too large (maximum %1$d MB)</string>
+    <string name="attachment_missing">This file hasn’t been downloaded yet. Sync and try again.</string>
+    <string name="attachment_no_app">No app can open this file</string>
 </resources>

@@ -381,4 +381,8 @@
     <string name="reminder_remove">Erinnerung entfernen</string>
     <string name="reminder_title">Uhrzeit der Erinnerung</string>
     <string name="next">Weiter</string>
+    <string name="fmt_file">Datei anhängen</string>
+    <string name="attachment_too_large">Die Datei ist zu groß (maximal %1$d MB)</string>
+    <string name="attachment_missing">Diese Datei wurde noch nicht heruntergeladen. Synchronisiere und versuche es erneut.</string>
+    <string name="attachment_no_app">Keine App kann diese Datei öffnen</string>
 </resources>

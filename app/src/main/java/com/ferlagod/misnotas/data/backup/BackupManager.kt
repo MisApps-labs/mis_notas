@@ -197,12 +197,7 @@ class BackupManager(context: Context) {
     }
 
     private suspend fun extensionFor(id: String): String =
-        when (attachmentDao.getById(id)?.mimeType) {
-            "image/png" -> ".png"
-            "image/jpeg" -> ".jpg"
-            "image/gif" -> ".gif"
-            else -> ".webp"
-        }
+        AttachmentStore.extensionForMime(attachmentDao.getById(id)?.mimeType ?: "image/webp")
 
     // ------------------------------------------------------------------
     // Importar
@@ -287,17 +282,29 @@ class BackupManager(context: Context) {
                 else normalizePath((dirSegments + path.split('/')).joinToString("/"))?.takeIf { it in entries }
             }
 
+            // Un enlace (sin `!`) a otra nota del ZIP no es un adjunto.
+            fun resolveMatch(match: MatchResult): String? {
+                val resolved = resolve(match.groupValues[2]) ?: return null
+                val isImage = match.value.startsWith("!")
+                if (!isImage && resolved.substringAfterLast('.').lowercase() in NOTE_EXTENSIONS) return null
+                return resolved
+            }
+
             for (match in IMAGE_LINK.findAll(parsed.content)) {
-                val resolved = resolve(match.groupValues[2]) ?: continue
+                val resolved = resolveMatch(match) ?: continue
                 if (resolved !in importedAttachments) {
                     importedAttachments[resolved] = storeAttachment(entries.getValue(resolved).readBytes(), resolved)
                 }
             }
             // 2) Se reescriben los enlaces a `attachment://<id>`.
             val content = IMAGE_LINK.replace(parsed.content) { match ->
-                val id = resolve(match.groupValues[2])?.let { importedAttachments[it] }
-                if (id == null) match.value
-                else "![${match.groupValues[1]}](${ImageSizing.withSize(AttachmentStore.reference(id), ImageSizing.widthPercent(match.groupValues[2]))})"
+                val id = resolveMatch(match)?.let { importedAttachments[it] }
+                when {
+                    id == null -> match.value
+                    match.value.startsWith("!") ->
+                        "![${match.groupValues[1]}](${ImageSizing.withSize(AttachmentStore.reference(id), ImageSizing.widthPercent(match.groupValues[2]))})"
+                    else -> "[${match.groupValues[1]}](${AttachmentStore.reference(id)})"
+                }
             }
 
             val folderId = try {
@@ -339,7 +346,8 @@ class BackupManager(context: Context) {
             "png" -> "image/png"
             "jpg", "jpeg" -> "image/jpeg"
             "gif" -> "image/gif"
-            else -> "image/webp"
+            "webp" -> "image/webp"
+            else -> AttachmentStore.mimeForName(path) ?: "application/octet-stream"
         }
         // Manda el contenido: un .png que en realidad es JPEG se exporta luego como .jpg.
         val mime = AttachmentStore.detectMimeType(bytes, fallback = byExtension)
@@ -420,7 +428,10 @@ class BackupManager(context: Context) {
         private const val MAX_ENTRY_BYTES = 30L * 1024 * 1024
         private const val MAX_ZIP_BYTES = 500L * 1024 * 1024
 
-        private val IMAGE_LINK = Regex("""!\[([^\]]*)]\(([^)\s]+)\)""")
+        private val NOTE_EXTENSIONS = setOf("md", "markdown", "txt")
+
+        /** Imagen o enlace a un fichero local: `![x](ruta)` o `[x](ruta)`. */
+        private val IMAGE_LINK = Regex("""!?\[([^\]]*)]\(([^)\s]+)\)""")
 
         private fun firstLine(content: String): String? =
             content.lineSequence().map { it.trim().trimStart('#', '-', '>', ' ') }.firstOrNull { it.isNotBlank() }?.take(60)

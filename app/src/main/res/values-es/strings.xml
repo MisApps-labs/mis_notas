@@ -395,4 +395,8 @@
     <string name="reminder_remove">Quitar recordatorio</string>
     <string name="reminder_title">Hora del recordatorio</string>
     <string name="next">Siguiente</string>
+    <string name="fmt_file">Adjuntar archivo</string>
+    <string name="attachment_too_large">El archivo es demasiado grande (máximo %1$d MB)</string>
+    <string name="attachment_missing">Este archivo aún no se ha descargado. Sincroniza y vuelve a intentarlo.</string>
+    <string name="attachment_no_app">Ninguna app puede abrir este archivo</string>
 </resources>

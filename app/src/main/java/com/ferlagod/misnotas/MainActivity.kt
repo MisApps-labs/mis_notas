@@ -720,6 +720,7 @@ private fun EditorHost(
         onDuplicateNote = viewModel::duplicateNote,
         onOpenNote = onOpenNote,
         onAddImage = viewModel::addImageAttachment,
+        onAddFile = viewModel::addFileAttachment,
         observeRevisions = viewModel::observeRevisions,
         onRestoreRevision = viewModel::prepareRestore,
         onDeleteRevision = viewModel::deleteRevision,

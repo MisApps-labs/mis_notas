@@ -395,4 +395,8 @@
     <string name="reminder_remove">Supprimer le rappel</string>
     <string name="reminder_title">Heure du rappel</string>
     <string name="next">Suivant</string>
+    <string name="fmt_file">Joindre un fichier</string>
+    <string name="attachment_too_large">Le fichier est trop volumineux (maximum %1$d Mo)</string>
+    <string name="attachment_missing">Ce fichier n’a pas encore été téléchargé. Synchronisez et réessayez.</string>
+    <string name="attachment_no_app">Aucune app ne peut ouvrir ce fichier</string>
 </resources>

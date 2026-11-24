@@ -46,7 +46,7 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - **Carpetas anidadas** con colores, notas fijadas y papelera con restauración (y vaciado automático a los 30 días, desactivable).
 - **Markdown**: títulos, negrita, cursiva, tachado, código, bloques de código, citas, listas, listas numeradas, tablas, enlaces (también direcciones sueltas), separadores y **listas de tareas** que se marcan con un toque.
 - **Editor cómodo**: deshacer/rehacer, las listas continúan solas al pulsar Intro, barra de formato que actúa sobre la línea o la selección, contador de palabras y tiempo de lectura.
-- **Imágenes** adjuntas (varias a la vez; se comprimen a WebP y se sincronizan como ficheros cifrados aparte) con visor a pantalla completa y zoom.
+- **Imágenes** adjuntas (varias a la vez; se comprimen a WebP y se sincronizan como ficheros cifrados aparte) con visor a pantalla completa y zoom, y **cualquier otro archivo** (PDF, audio, documentos…, hasta 25 MB) que se abre con la app que elijas.
 - **Selección múltiple** con pulsación larga: fijar, cambiar color, mover de carpeta o borrar varias notas a la vez, y **"Deshacer"** al mandar algo a la papelera.
 - **Etiquetas** con `#hashtags` en el propio texto (`#trabajo`, `#viaje/2026` con subetiquetas), como en Obsidian o Bear: aparecen en el inicio con su recuento, en cada tarjeta y resaltadas en la nota.
 - **Vista de cuadrícula o lista**, orden por fecha o título, progreso de las listas de tareas en cada tarjeta y **búsqueda instantánea** que ignora acentos, resalta los resultados y admite operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
@@ -156,8 +156,7 @@ app/src/main/res/values*/strings.xml   Textos (inglés por defecto; es, fr, de, 
 ## Limitaciones conocidas
 
 - Todavía no se puede **cambiar la contraseña maestra** de una cuenta existente.
-- Las imágenes que ya no usa ninguna nota se borran del teléfono, pero **no del servidor**.
-- Solo admite imágenes como adjuntos.
+- Los adjuntos tienen un máximo de 25 MB cada uno.
 
 ¿Ideas o fallos? Abre una [incidencia](https://github.com/MisApps-labs/mis_notas/issues).
 

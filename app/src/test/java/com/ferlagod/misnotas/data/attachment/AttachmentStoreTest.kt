@@ -27,7 +27,22 @@ class AttachmentStoreTest {
     fun unknownOrShortUsesFallback() {
         assertEquals("image/png", AttachmentStore.detectMimeType(bytes(0x00, 0x01), fallback = "image/png"))
         assertEquals("image/webp", AttachmentStore.detectMimeType(ByteArray(0)))
-        // RIFF sin "WEBP" (p. ej. un WAV) no es una imagen WebP.
-        assertEquals("image/jpeg", AttachmentStore.detectMimeType("RIFF\u0000\u0000\u0000\u0000WAVE".toByteArray(), fallback = "image/jpeg"))
+        // RIFF sin "WEBP" no es una imagen WebP: un WAV se reconoce como audio.
+        assertEquals("audio/wav", AttachmentStore.detectMimeType("RIFF\u0000\u0000\u0000\u0000WAVE".toByteArray(), fallback = "image/jpeg"))
+        assertEquals("image/jpeg", AttachmentStore.detectMimeType("RIFF\u0000\u0000\u0000\u0000AVI ".toByteArray(), fallback = "image/jpeg"))
+    }
+
+    @Test
+    fun fileLinksCarryTheirName() {
+        val md = "Mira ${AttachmentStore.fileLink("informe [v2].pdf", "abc-1")} y ![foto](attachment://img-2)"
+        assertEquals(mapOf("abc-1" to "informe (v2).pdf"), AttachmentStore.fileNames(md))
+        assertEquals(setOf("abc-1", "img-2"), AttachmentStore.referencedIds(md))
+    }
+
+    @Test
+    fun detectsCommonFileTypes() {
+        assertEquals("application/pdf", AttachmentStore.detectMimeType("%PDF-1.7".toByteArray(), "x"))
+        assertEquals("audio/ogg", AttachmentStore.detectMimeType("OggS....".toByteArray(), "x"))
+        assertEquals("x", AttachmentStore.detectMimeType("hola".toByteArray(), "x"))
     }
 }

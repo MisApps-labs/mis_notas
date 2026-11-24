@@ -524,7 +524,10 @@ class SyncRepository private constructor(context: Context) {
         key: SecretKey,
         remote: Map<String, RemoteFileMeta>
     ) {
-        val referenced = noteDao.getAllLiveContents().flatMapTo(mutableSetOf()) { AttachmentStore.referencedIds(it) }
+        val contents = noteDao.getAllLiveContents()
+        val referenced = contents.flatMapTo(mutableSetOf()) { AttachmentStore.referencedIds(it) }
+        // Los ficheros (no imágenes) llevan su nombre en el enlace: de ahí sale su tipo.
+        val fileNames = HashMap<String, String>().apply { contents.forEach { putAll(AttachmentStore.fileNames(it)) } }
         for (id in referenced) {
             if (attachmentStore.exists(id)) continue
             val name = attachmentFile(id)
@@ -532,7 +535,13 @@ class SyncRepository private constructor(context: Context) {
             val bytes = downloadRecord(name) { RemoteCodec.decryptAttachment(client.download(name), id, key) } ?: continue
             attachmentStore.write(id, bytes)
             attachmentDao.upsert(
-                AttachmentEntity(id = id, mimeType = AttachmentStore.detectMimeType(bytes), size = bytes.size.toLong(), isUploaded = true)
+                AttachmentEntity(
+                    id = id,
+                    mimeType = fileNames[id]?.let { AttachmentStore.mimeForName(it) }
+                        ?: AttachmentStore.detectMimeType(bytes, fallback = if (id in fileNames) "application/octet-stream" else "image/webp"),
+                    size = bytes.size.toLong(),
+                    isUploaded = true
+                )
             )
         }
     }

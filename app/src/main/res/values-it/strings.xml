@@ -395,4 +395,8 @@
     <string name="reminder_remove">Rimuovi promemoria</string>
     <string name="reminder_title">Ora del promemoria</string>
     <string name="next">Avanti</string>
+    <string name="fmt_file">Allega file</string>
+    <string name="attachment_too_large">Il file è troppo grande (massimo %1$d MB)</string>
+    <string name="attachment_missing">Questo file non è ancora stato scaricato. Sincronizza e riprova.</string>
+    <string name="attachment_no_app">Nessuna app può aprire questo file</string>
 </resources>
