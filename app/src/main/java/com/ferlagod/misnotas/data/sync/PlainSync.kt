@@ -268,7 +268,7 @@ class PlainSync(
 
     /** Markdown del servidor → interno: los enlaces a `.attachments/` pasan a `attachment://`. */
     private suspend fun fromRemote(client: WebDavClient, body: String, remoteAttachments: Map<String, RemoteFileMeta>): String {
-        val text = body.removePrefix("﻿").replace("\r\n", "\n").trimEnd()
+        val text = body.removePrefix(0xFEFF.toChar().toString()).replace("\r\n", "\n").trimEnd()
         for (match in REMOTE_ATTACHMENT.findAll(text)) {
             val id = match.groupValues[1]
             if (attachments.exists(id)) continue
