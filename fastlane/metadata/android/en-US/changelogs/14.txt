@@ -1,0 +1,9 @@
+• Nextcloud browser sign-in; any WebDAV server works too.
+• Connection test and custom certificates.
+• #tags, [[links]], templates and search operators.
+• Version history and automatic merging of changes.
+• Widget, quick settings tile and reminders.
+• Attach any kind of file.
+• Import from Keep, Joplin, Evernote, Simplenote and Standard Notes.
+• Unencrypted mode compatible with Nextcloud Notes.
+• Optional v3 encryption: Argon2id, recovery key, password change.

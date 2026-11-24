@@ -401,13 +401,13 @@
     <string name="err_not_v3">Aktualisiere zuerst die Verschlüsselung</string>
     <string name="err_vault_concurrent">Ein anderes Gerät hat die Verschlüsselung gleichzeitig geändert. Versuche es erneut.</string>
     <string name="vault_title">VERSCHLÜSSELUNG</string>
-    <string name="vault_v2_desc">Format v2 (PBKDF2). Kompatibel mit der aktuellen Desktop-App und Browser-Erweiterung.</string>
+    <string name="vault_v2_desc">Format v2 (PBKDF2). Kompatibel mit allen Versionen der Desktop-App und der Browser-Erweiterung.</string>
     <string name="vault_v3_desc">Format v3: Argon2id, Umschlagverschlüsselung, aufgefüllte Dateien und verschlüsselte Löschungen.</string>
     <string name="vault_recovery_yes">Wiederherstellungsschlüssel: erstellt</string>
     <string name="vault_recovery_no">Kein Wiederherstellungsschlüssel: Wenn du das Passwort vergisst, sind die Notizen verloren</string>
     <string name="vault_upgrade">Verschlüsselung auf v3 aktualisieren</string>
     <string name="vault_upgrade_explain">Dein Master-Passwort wird mit Argon2id geschützt, du kannst es ändern und einen Wiederherstellungsschlüssel erstellen, und Dateien auf dem Server verbergen ihre genaue Größe. Die Notizen werden einmal neu hochgeladen.</string>
-    <string name="vault_upgrade_warning">Nach dem Update synchronisieren Mis-Notas-Versionen ohne v3 (auch die aktuelle Desktop-App und Erweiterung) nicht mehr mit diesem Konto, bis sie aktualisiert sind. Deine anderen Handys fragen einmal nach dem Passwort.</string>
+    <string name="vault_upgrade_warning">Nach dem Update synchronisieren ältere Versionen nicht mehr mit diesem Konto, bis sie aktualisiert sind: Mis Notas für Android vor 1.0.2, die Desktop-App vor 1.1 und die Erweiterung vor 1.1. Deine anderen Geräte fragen einmal nach dem Passwort.</string>
     <string name="vault_upgrade_with_recovery">Wiederherstellungsschlüssel erstellen</string>
     <string name="vault_upgrade_confirm">Aktualisieren</string>
     <string name="vault_upgraded">Verschlüsselung aktualisiert. Notizen werden neu hochgeladen…</string>

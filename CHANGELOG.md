@@ -2,7 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); versiones según [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [1.0.2] - 2026-11-24
 
 ### Añadido
 - Cifrado v3 opcional (Ajustes → Sincronización → Cifrado): Argon2id, cifrado en sobre, clave de recuperación, cambio de contraseña maestra, rotación de la clave de datos, relleno de los ficheros a 512 bytes y lápidas cifradas. Las cuentas siguen en v2 hasta que el usuario actualiza.

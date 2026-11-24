@@ -415,13 +415,13 @@
     <string name="err_not_v3">Primero actualiza el cifrado</string>
     <string name="err_vault_concurrent">Otro dispositivo ha cambiado el cifrado a la vez. Inténtalo de nuevo.</string>
     <string name="vault_title">CIFRADO</string>
-    <string name="vault_v2_desc">Formato v2 (PBKDF2). Compatible con la app de escritorio y la extensión actuales.</string>
+    <string name="vault_v2_desc">Formato v2 (PBKDF2). Compatible con todas las versiones de la app de escritorio y la extensión.</string>
     <string name="vault_v3_desc">Formato v3: Argon2id, cifrado en sobre, ficheros con relleno y borrados cifrados.</string>
     <string name="vault_recovery_yes">Clave de recuperación: creada</string>
     <string name="vault_recovery_no">Sin clave de recuperación: si olvidas la contraseña, no se podrán recuperar las notas</string>
     <string name="vault_upgrade">Actualizar el cifrado a v3</string>
     <string name="vault_upgrade_explain">Tu contraseña maestra pasará a protegerse con Argon2id, podrás cambiarla y crear una clave de recuperación, y los ficheros del servidor ocultarán su tamaño exacto. Las notas se vuelven a subir una vez.</string>
-    <string name="vault_upgrade_warning">Tras actualizar, las versiones de Mis Notas que no admiten v3 (también la app de escritorio y la extensión actuales) dejarán de sincronizar con esta cuenta hasta que se actualicen. Tus otros móviles pedirán la contraseña una vez.</string>
+    <string name="vault_upgrade_warning">Tras actualizar, las versiones antiguas dejan de sincronizar con esta cuenta hasta que se actualicen: Mis Notas para Android anterior a la 1.0.2, la app de escritorio anterior a la 1.1 y la extensión anterior a la 1.1. Tus otros dispositivos pedirán la contraseña una vez.</string>
     <string name="vault_upgrade_with_recovery">Crear una clave de recuperación</string>
     <string name="vault_upgrade_confirm">Actualizar</string>
     <string name="vault_upgraded">Cifrado actualizado. Volviendo a subir las notas…</string>

@@ -415,13 +415,13 @@
     <string name="err_not_v3">Mettez d’abord à jour le chiffrement</string>
     <string name="err_vault_concurrent">Un autre appareil a modifié le chiffrement en même temps. Réessayez.</string>
     <string name="vault_title">CHIFFREMENT</string>
-    <string name="vault_v2_desc">Format v2 (PBKDF2). Compatible avec l’app de bureau et l’extension actuelles.</string>
+    <string name="vault_v2_desc">Format v2 (PBKDF2). Compatible avec toutes les versions de l’app de bureau et de l’extension.</string>
     <string name="vault_v3_desc">Format v3 : Argon2id, chiffrement par enveloppe, fichiers rembourrés et suppressions chiffrées.</string>
     <string name="vault_recovery_yes">Clé de récupération : créée</string>
     <string name="vault_recovery_no">Pas de clé de récupération : si vous oubliez le mot de passe, vos notes seront irrécupérables</string>
     <string name="vault_upgrade">Mettre à jour le chiffrement en v3</string>
     <string name="vault_upgrade_explain">Votre mot de passe principal sera protégé par Argon2id, vous pourrez le changer et créer une clé de récupération, et les fichiers du serveur masqueront leur taille exacte. Les notes sont réenvoyées une fois.</string>
-    <string name="vault_upgrade_warning">Après la mise à jour, les versions de Mis Notas sans prise en charge de v3 (dont l’app de bureau et l’extension actuelles) ne synchroniseront plus avec ce compte jusqu’à leur mise à jour. Vos autres téléphones demanderont le mot de passe une fois.</string>
+    <string name="vault_upgrade_warning">Après la mise à jour, les anciennes versions ne synchronisent plus avec ce compte jusqu’à leur mise à jour : Mis Notas pour Android avant la 1.0.2, l’app de bureau avant la 1.1 et l’extension avant la 1.1. Vos autres appareils demanderont le mot de passe une fois.</string>
     <string name="vault_upgrade_with_recovery">Créer une clé de récupération</string>
     <string name="vault_upgrade_confirm">Mettre à jour</string>
     <string name="vault_upgraded">Chiffrement mis à jour. Réenvoi des notes…</string>

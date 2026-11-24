@@ -99,7 +99,7 @@ Ten en cuenta que en este modo quien administre el servidor puede leer las notas
 
 ### Cifrado v3 (opcional)
 
-En **Ajustes → Sincronización → Cifrado** puedes actualizar la bóveda a **v3**: Argon2id, **clave de recuperación**, **cambio de contraseña maestra**, **rotación de la clave**, ficheros con relleno y borrados cifrados. Hazlo cuando todos tus clientes lo admitan: las versiones que solo conocen v2 (también la app de escritorio y la extensión actuales) dejan de sincronizar con esa cuenta hasta que se actualicen, sin estropear nada.
+En **Ajustes → Sincronización → Cifrado** puedes actualizar la bóveda a **v3**: Argon2id, **clave de recuperación**, **cambio de contraseña maestra**, **rotación de la clave**, ficheros con relleno y borrados cifrados. Lo admiten Mis Notas para Android 1.0.2, la [app de escritorio](https://github.com/MisApps-labs/mis_notas_desktop) 1.1 y la [extensión](https://github.com/MisApps-labs/mis_notas_extensiones) 1.1. Las versiones anteriores dejan de sincronizar con esa cuenta hasta que se actualicen, sin estropear nada.
 
 > [!WARNING]
 > **Si olvidas la contraseña maestra y no tienes clave de recuperación, no hay forma de recuperar las notas guardadas en el servidor.** Ni el administrador de Nextcloud ni el autor de la app pueden descifrarlas. Guárdala en un gestor de contraseñas.

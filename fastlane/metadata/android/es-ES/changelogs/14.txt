@@ -1,0 +1,9 @@
+• Nextcloud: inicio de sesión en el navegador; también cualquier WebDAV.
+• Probar conexión y certificados propios.
+• Etiquetas #, [[enlaces]], plantillas y búsqueda con operadores.
+• Historial de versiones y fusión automática de cambios.
+• Widget, ajustes rápidos y recordatorios.
+• Adjuntos de cualquier tipo.
+• Importar de Keep, Joplin, Evernote, Simplenote y Standard Notes.
+• Modo sin cifrar compatible con Nextcloud Notes.
+• Cifrado v3 opcional: Argon2id, clave de recuperación y cambio de contraseña.

@@ -415,13 +415,13 @@
     <string name="err_not_v3">Aggiorna prima la cifratura</string>
     <string name="err_vault_concurrent">Un altro dispositivo ha modificato la cifratura nello stesso momento. Riprova.</string>
     <string name="vault_title">CIFRATURA</string>
-    <string name="vault_v2_desc">Formato v2 (PBKDF2). Compatibile con l’app desktop e l’estensione attuali.</string>
+    <string name="vault_v2_desc">Formato v2 (PBKDF2). Compatibile con tutte le versioni dell’app desktop e dell’estensione.</string>
     <string name="vault_v3_desc">Formato v3: Argon2id, cifratura a busta, file con riempimento ed eliminazioni cifrate.</string>
     <string name="vault_recovery_yes">Chiave di recupero: creata</string>
     <string name="vault_recovery_no">Nessuna chiave di recupero: se dimentichi la password, le note non saranno recuperabili</string>
     <string name="vault_upgrade">Aggiorna la cifratura a v3</string>
     <string name="vault_upgrade_explain">La password principale sarà protetta con Argon2id, potrai cambiarla e creare una chiave di recupero, e i file sul server nasconderanno la loro dimensione esatta. Le note vengono ricaricate una volta.</string>
-    <string name="vault_upgrade_warning">Dopo l’aggiornamento, le versioni di Mis Notas senza supporto v3 (incluse l’app desktop e l’estensione attuali) smetteranno di sincronizzare con questo account finché non verranno aggiornate. Gli altri telefoni chiederanno la password una volta.</string>
+    <string name="vault_upgrade_warning">Dopo l’aggiornamento, le versioni precedenti smettono di sincronizzare con questo account finché non vengono aggiornate: Mis Notas per Android prima della 1.0.2, l’app desktop prima della 1.1 e l’estensione prima della 1.1. Gli altri dispositivi chiederanno la password una volta.</string>
     <string name="vault_upgrade_with_recovery">Crea una chiave di recupero</string>
     <string name="vault_upgrade_confirm">Aggiorna</string>
     <string name="vault_upgraded">Cifratura aggiornata. Ricaricamento delle note…</string>
