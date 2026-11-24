@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.core.content.IntentCompat
+import androidx.core.net.toUri
 import androidx.core.os.BundleCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -240,7 +241,14 @@ class MainActivity : ComponentActivity() {
             return
         }
         when (intent.action) {
-            ACTION_NEW_NOTE -> viewModel.requestNavigation(PendingNavigation.NewNote)
+            ACTION_NEW_NOTE -> {
+                viewModel.requestNavigation(PendingNavigation.NewNote)
+                intent.action = null
+            }
+            ACTION_OPEN_NOTE -> {
+                intent.getStringExtra(EXTRA_NOTE_ID)?.let { viewModel.requestNavigation(PendingNavigation.OpenNote(it)) }
+                intent.action = null
+            }
             Intent.ACTION_SEND -> {
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: intent.getStringExtra(Intent.EXTRA_TITLE)
@@ -260,6 +268,20 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_NEW_NOTE = "com.ferlagod.misnotas.action.NEW_NOTE"
+        /** Abre la nota [EXTRA_NOTE_ID] (desde el widget o un recordatorio). */
+        const val ACTION_OPEN_NOTE = "com.ferlagod.misnotas.action.OPEN_NOTE"
+        const val EXTRA_NOTE_ID = "note_id"
+
+        fun newNoteIntent(context: android.content.Context) = Intent(context, MainActivity::class.java)
+            .setAction(ACTION_NEW_NOTE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        fun openNoteIntent(context: android.content.Context, noteId: String) = Intent(context, MainActivity::class.java)
+            .setAction(ACTION_OPEN_NOTE)
+            .putExtra(EXTRA_NOTE_ID, noteId)
+            // Un dato distinto por nota: si no, Android reutilizaría el PendingIntent de otra.
+            .setData("misnotas://note/$noteId".toUri())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         private const val STATE_LOCKED = "app_locked"
         private const val STATE_PENDING_SHARE = "pending_share"
     }
@@ -654,6 +676,7 @@ private fun EditorHost(
     isNewNote: Boolean = noteId == null
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     // Se lee una sola vez de la base de datos (incluye notas en papelera).
     var existingNote by remember(noteId) { mutableStateOf<NoteEntity?>(null) }
     var noteLoaded by remember(noteId) { mutableStateOf(noteId == null) }
@@ -700,6 +723,8 @@ private fun EditorHost(
         observeRevisions = viewModel::observeRevisions,
         onRestoreRevision = viewModel::prepareRestore,
         onDeleteRevision = viewModel::deleteRevision,
+        reminders = reminders,
+        onSetReminder = viewModel::setReminder,
         // Si la nota pasa a la papelera en otro dispositivo lo decide el editor (ver NoteEditorScreen).
         onTrashedElsewhere = viewModel::onNoteTrashedElsewhere,
         showReadModeHint = settings.showHint(Hints.READ_MODE),

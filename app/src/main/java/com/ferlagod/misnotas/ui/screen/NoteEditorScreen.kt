@@ -58,6 +58,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FormatBold
 import androidx.compose.material.icons.rounded.FormatItalic
@@ -260,6 +261,9 @@ fun NoteEditorScreen(
         { kotlinx.coroutines.flow.flowOf(emptyList()) },
     onRestoreRevision: (noteId: String, revisionId: Long, onReady: (com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity) -> Unit) -> Unit = { _, _, _ -> },
     onDeleteRevision: (Long) -> Unit = {},
+    /** Recordatorios (id de nota -> instante) y cómo cambiar el de esta nota (null = quitarlo). */
+    reminders: Map<String, Long> = emptyMap(),
+    onSetReminder: (noteId: String, triggerAt: Long?) -> Unit = { _, _ -> },
     /**
      * Otro dispositivo mandó la nota a la papelera mientras estaba abierta. Con [keepEdits]
      * el editor tenía cambios y la nota se restaura para no perderlos; si no, el editor se cierra.
@@ -287,6 +291,7 @@ fun NoteEditorScreen(
 
     // Id estable: una nota nueva conserva el mismo id en todos los guardados.
     val stableId = rememberSaveable { noteId ?: UUID.randomUUID().toString() }
+    val reminderAt = reminders[stableId]
 
     var title by rememberSaveable { mutableStateOf("") }
     var textValue by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
@@ -308,6 +313,10 @@ fun NoteEditorScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var showReminder by remember { mutableStateOf(false) }
+    val notificationPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { /* Si se niega, el recordatorio se guarda igual pero no podrá avisar. */ }
     var viewerImage by remember { mutableStateOf<Any?>(null) }
     /** Imagen cuyo tamaño se está cambiando (tramo que ocupa en el Markdown). */
     var imageResize by remember { mutableStateOf<ImageResizeState?>(null) }
@@ -628,13 +637,25 @@ fun NoteEditorScreen(
                         val locale = Locale.getDefault()
                         SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "dMMMjmm"), locale).format(Date(updatedAt))
                     }
-                    Text(
-                        text = stringResource(R.string.edited_at, formattedDate),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column {
+                        Text(
+                            text = stringResource(R.string.edited_at, formattedDate),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (reminderAt != null) {
+                            Text(
+                                text = "🔔 " + formatReminder(reminderAt),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable { showReminder = true }
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { close() }) {
@@ -714,6 +735,15 @@ fun NoteEditorScreen(
                                         coroutineScope.launch {
                                             onDuplicateNote(stableId)?.let(onOpenNote)
                                         }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(if (reminderAt != null) R.string.reminder_edit else R.string.reminder_add)) },
+                                    leadingIcon = { Icon(Icons.Rounded.Alarm, contentDescription = null) },
+                                    onClick = {
+                                        showMenu = false
+                                        persistChanges(sync = false)
+                                        showReminder = true
                                     }
                                 )
                                 DropdownMenuItem(
@@ -960,6 +990,22 @@ fun NoteEditorScreen(
             confirmButton = {
                 TextButton(onClick = { showColorPicker = false }) { Text(stringResource(R.string.close)) }
             }
+        )
+    }
+
+    if (showReminder) {
+        ReminderDialog(
+            current = reminderAt,
+            onConfirm = { at ->
+                showReminder = false
+                onSetReminder(stableId, at)
+                if (at != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                    !com.ferlagod.misnotas.reminder.Reminders.canNotify(context)
+                ) {
+                    notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
+            onDismiss = { showReminder = false }
         )
     }
 

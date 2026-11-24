@@ -384,4 +384,15 @@
     <string name="history_reason_sync">Avant synchro</string>
     <string name="history_reason_merge">Avant fusion</string>
     <string name="history_reason_restore">Avant restauration</string>
+    <string name="widget_description">Bouton nouvelle note et vos notes épinglées et récentes</string>
+    <string name="widget_empty">Pas encore de notes</string>
+    <string name="widget_locked">Les notes sont masquées tant que l’app est verrouillée.</string>
+    <string name="reminders_channel">Rappels</string>
+    <string name="reminder_private_title">Rappel de Mis Notas</string>
+    <string name="reminder_private_text">Ouvrez l’app pour voir la note</string>
+    <string name="reminder_add">Ajouter un rappel</string>
+    <string name="reminder_edit">Modifier le rappel</string>
+    <string name="reminder_remove">Supprimer le rappel</string>
+    <string name="reminder_title">Heure du rappel</string>
+    <string name="next">Suivant</string>
 </resources>

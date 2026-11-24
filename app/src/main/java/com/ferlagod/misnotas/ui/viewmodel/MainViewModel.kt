@@ -45,7 +45,9 @@ import com.ferlagod.misnotas.ui.markdown.markdownPreview
 import com.ferlagod.misnotas.ui.theme.NoteColor
 import com.ferlagod.misnotas.util.ImageCompressor
 import com.ferlagod.misnotas.util.LanguageManager
+import com.ferlagod.misnotas.reminder.Reminders
 import com.ferlagod.misnotas.util.SearchQuery
+import com.ferlagod.misnotas.widget.NotesWidget
 import com.ferlagod.misnotas.util.Tags
 import com.ferlagod.misnotas.util.TextSearch
 import kotlinx.coroutines.CancellationException
@@ -60,6 +62,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.map
@@ -286,6 +289,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             syncRepository.migrateLegacyImages()
             purgeOldTrash()
             pruneHistory()
+            Reminders.rescheduleAll(application)
+        }
+        // El widget refleja los cambios de las notas (también los que trae la sincronización).
+        viewModelScope.launch {
+            allActiveNotes.drop(1).collect { NotesWidget.requestUpdate(application) }
         }
         if (!settings.value.welcomeSeeded) viewModelScope.launch { seedWelcomeNote() }
         viewModelScope.launch {
@@ -349,7 +357,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setSortOrder(order: SortOrder) = appSettings.setSortOrder(order)
     fun setThemeMode(mode: ThemeMode) = appSettings.setThemeMode(mode)
     fun setAmoled(enabled: Boolean) = appSettings.setAmoled(enabled)
-    fun setAppLock(enabled: Boolean) = appSettings.setAppLock(enabled)
+    fun setAppLock(enabled: Boolean) {
+        appSettings.setAppLock(enabled)
+        // El widget oculta o vuelve a enseñar las notas.
+        NotesWidget.requestUpdate(getApplication())
+    }
 
     fun setAutoPurgeTrash(enabled: Boolean) {
         appSettings.setAutoPurgeTrash(enabled)
@@ -359,6 +371,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ==========================================
     // Historial de versiones
     // ==========================================
+
+    // ==========================================
+    // Recordatorios
+    // ==========================================
+
+    /** Recordatorio de cada nota (id -> instante). */
+    val reminders: StateFlow<Map<String, Long>> = database.reminderDao().allFlow()
+        .map { list -> list.associate { it.noteId to it.triggerAt } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    fun setReminder(noteId: String, triggerAt: Long?) {
+        viewModelScope.launch {
+            if (triggerAt == null) Reminders.clear(getApplication(), noteId)
+            else Reminders.set(getApplication(), noteId, triggerAt)
+        }
+    }
 
     fun observeRevisions(noteId: String): Flow<List<NoteRevisionEntity>> = historyDao.revisionsFlow(noteId)
 
@@ -582,6 +610,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val key = syncRepository.vault.unlockLocal(masterPassword)
                 authPreferences.saveDerivedKey(key)
                 _isUnlocked.value = true
+                NotesWidget.requestUpdate(getApplication())
                 SyncWorker.schedule(getApplication())
                 triggerSync()
                 onSuccess()
@@ -597,6 +626,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!_isConfigured.value) return
         authPreferences.clearDerivedKey()
         _isUnlocked.value = false
+        NotesWidget.requestUpdate(getApplication())
     }
 
     fun disconnectNextcloud() {

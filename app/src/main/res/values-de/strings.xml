@@ -370,4 +370,15 @@
     <string name="history_reason_sync">Vor Synchronisierung</string>
     <string name="history_reason_merge">Vor Zusammenführung</string>
     <string name="history_reason_restore">Vor Wiederherstellung</string>
+    <string name="widget_description">Schaltfläche für neue Notiz und deine angehefteten und letzten Notizen</string>
+    <string name="widget_empty">Noch keine Notizen</string>
+    <string name="widget_locked">Notizen sind ausgeblendet, solange die App gesperrt ist.</string>
+    <string name="reminders_channel">Erinnerungen</string>
+    <string name="reminder_private_title">Erinnerung von Mis Notas</string>
+    <string name="reminder_private_text">Öffne die App, um die Notiz zu sehen</string>
+    <string name="reminder_add">Erinnerung hinzufügen</string>
+    <string name="reminder_edit">Erinnerung ändern</string>
+    <string name="reminder_remove">Erinnerung entfernen</string>
+    <string name="reminder_title">Uhrzeit der Erinnerung</string>
+    <string name="next">Weiter</string>
 </resources>

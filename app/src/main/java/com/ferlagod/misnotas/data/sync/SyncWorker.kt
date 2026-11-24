@@ -23,6 +23,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     override suspend fun doWork(): Result {
         val result = SyncRepository.getInstance(applicationContext).synchronize()
+        com.ferlagod.misnotas.widget.NotesWidget.requestUpdate(applicationContext)
         val error = result.exceptionOrNull() ?: return Result.success()
         // Errores que no se arreglan reintentando: credenciales, contraseña o bóveda. La próxima
         // ejecución periódica (o abrir la app) lo vuelve a intentar.

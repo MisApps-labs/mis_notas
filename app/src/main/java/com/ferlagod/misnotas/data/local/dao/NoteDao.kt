@@ -131,6 +131,10 @@ interface NoteDao {
     )
     suspend fun resetSyncMetadata()
 
+    /** Para el widget: fijadas primero y luego las más recientes. */
+    @Query("SELECT * FROM notes WHERE isDeleted = 0 AND syncStatus != 'PENDING_DELETE' ORDER BY isPinned DESC, updatedAt DESC LIMIT :limit")
+    suspend fun getWidgetNotes(limit: Int): List<NoteEntity>
+
     /** Notas visibles (fuera de la papelera y sin borrado pendiente). */
     @Query("SELECT COUNT(*) FROM notes WHERE isDeleted = 0 AND syncStatus != 'PENDING_DELETE'")
     suspend fun countLive(): Int

@@ -16,12 +16,14 @@ import com.ferlagod.misnotas.data.local.dao.AttachmentDao
 import com.ferlagod.misnotas.data.local.dao.FolderDao
 import com.ferlagod.misnotas.data.local.dao.NoteDao
 import com.ferlagod.misnotas.data.local.dao.NoteHistoryDao
+import com.ferlagod.misnotas.data.local.dao.ReminderDao
 import com.ferlagod.misnotas.data.local.dao.RemoteTombstoneDao
 import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
 import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
 import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
+import com.ferlagod.misnotas.data.local.entity.ReminderEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
 
 /**
@@ -34,9 +36,10 @@ import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
         AttachmentEntity::class,
         RemoteTombstoneEntity::class,
         NoteRevisionEntity::class,
-        NoteSyncBaseEntity::class
+        NoteSyncBaseEntity::class,
+        ReminderEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -47,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun attachmentDao(): AttachmentDao
     abstract fun remoteTombstoneDao(): RemoteTombstoneDao
     abstract fun noteHistoryDao(): NoteHistoryDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         private const val DATABASE_NAME = "misnotas.db"
@@ -141,13 +145,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v3 -> v4: recordatorios. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `reminders` (`noteId` TEXT NOT NULL, `triggerAt` INTEGER NOT NULL, PRIMARY KEY(`noteId`))")
+            }
+        }
+
         private fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
         }
     }

@@ -384,4 +384,15 @@
     <string name="history_reason_sync">Prima della sincronizzazione</string>
     <string name="history_reason_merge">Prima dell’unione</string>
     <string name="history_reason_restore">Prima del ripristino</string>
+    <string name="widget_description">Pulsante nuova nota e le note fissate e recenti</string>
+    <string name="widget_empty">Ancora nessuna nota</string>
+    <string name="widget_locked">Le note sono nascoste finché l’app è bloccata.</string>
+    <string name="reminders_channel">Promemoria</string>
+    <string name="reminder_private_title">Promemoria di Mis Notas</string>
+    <string name="reminder_private_text">Apri l’app per vedere la nota</string>
+    <string name="reminder_add">Aggiungi promemoria</string>
+    <string name="reminder_edit">Modifica promemoria</string>
+    <string name="reminder_remove">Rimuovi promemoria</string>
+    <string name="reminder_title">Ora del promemoria</string>
+    <string name="next">Avanti</string>
 </resources>

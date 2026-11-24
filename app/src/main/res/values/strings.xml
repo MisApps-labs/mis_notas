@@ -371,4 +371,15 @@
     <string name="history_reason_sync">Before sync</string>
     <string name="history_reason_merge">Before merging</string>
     <string name="history_reason_restore">Before restoring</string>
+    <string name="widget_description">New note button and your pinned and recent notes</string>
+    <string name="widget_empty">No notes yet</string>
+    <string name="widget_locked">Notes are hidden while the app is locked.</string>
+    <string name="reminders_channel">Reminders</string>
+    <string name="reminder_private_title">Mis Notas reminder</string>
+    <string name="reminder_private_text">Open the app to see the note</string>
+    <string name="reminder_add">Add reminder</string>
+    <string name="reminder_edit">Change reminder</string>
+    <string name="reminder_remove">Remove reminder</string>
+    <string name="reminder_title">Reminder time</string>
+    <string name="next">Next</string>
 </resources>
