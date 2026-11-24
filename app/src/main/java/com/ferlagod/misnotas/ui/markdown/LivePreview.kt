@@ -71,7 +71,7 @@ fun renderMarkdown(
                 val style = SpanStyle(color = colors.accent, textDecoration = TextDecoration.Underline)
                 val url = range.url
                 if (clickableLinks && url != null &&
-                    (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("mailto:") || url.startsWith("attachment://"))
+                    (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("mailto:") || url.startsWith("attachment://") || url.startsWith(NoteLinks.SCHEME))
                 ) {
                     builder.addLink(LinkAnnotation.Url(url, TextLinkStyles(style)), start, end)
                 } else {

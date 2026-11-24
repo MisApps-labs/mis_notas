@@ -399,4 +399,11 @@
     <string name="attachment_too_large">El archivo es demasiado grande (máximo %1$d MB)</string>
     <string name="attachment_missing">Este archivo aún no se ha descargado. Sincroniza y vuelve a intentarlo.</string>
     <string name="attachment_no_app">Ninguna app puede abrir este archivo</string>
+    <string name="fmt_note_link">Enlazar nota</string>
+    <string name="backlinks">ENLAZADA DESDE</string>
+    <string name="use_template">Usar plantilla</string>
+    <string name="picker_empty">No hay notas</string>
+    <string name="templates_folder">Carpeta de plantillas</string>
+    <string name="templates_folder_none">Ninguna</string>
+    <string name="templates_folder_desc">Sus notas se ofrecen en «Usar plantilla». {{fecha}} y {{hora}} se sustituyen al usarlas.</string>
 </resources>

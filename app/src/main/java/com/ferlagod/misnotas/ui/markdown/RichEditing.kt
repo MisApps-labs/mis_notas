@@ -302,7 +302,7 @@ fun activeInlineKinds(presentation: MarkdownPresentation, selStart: Int, selEnd:
     val e = maxOf(selStart, selEnd)
     return presentation.inlineTokens
         .filter { it.kind != InlineKind.TAG && s >= it.contentStart && e <= it.contentEnd && (s < it.contentEnd || s == e) }
-        .map { if (it.kind == InlineKind.AUTOLINK) InlineKind.LINK else it.kind }
+        .map { if (it.kind == InlineKind.AUTOLINK || it.kind == InlineKind.WIKILINK) InlineKind.LINK else it.kind }
         .toSet()
 }
 

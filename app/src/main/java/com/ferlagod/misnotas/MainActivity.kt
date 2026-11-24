@@ -465,6 +465,8 @@ private fun AppNavigationHost(
                 onGridLayoutChange = { if (it != settings.gridLayout) viewModel.toggleLayoutMode() },
                 onSortOrderChange = viewModel::setSortOrder,
                 onAutoPurgeChange = viewModel::setAutoPurgeTrash,
+                folders = folders,
+                onTemplatesFolderChange = viewModel::setTemplatesFolder,
                 onAppLockChange = onAppLockChange,
                 onExport = viewModel::exportBackup,
                 onImport = viewModel::importBackup,
@@ -677,6 +679,9 @@ private fun EditorHost(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
+    val allNotes by viewModel.allActiveNotes.collectAsStateWithLifecycle()
+    val templates by viewModel.templates.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     // Se lee una sola vez de la base de datos (incluye notas en papelera).
     var existingNote by remember(noteId) { mutableStateOf<NoteEntity?>(null) }
     var noteLoaded by remember(noteId) { mutableStateOf(noteId == null) }
@@ -725,6 +730,10 @@ private fun EditorHost(
         onRestoreRevision = viewModel::prepareRestore,
         onDeleteRevision = viewModel::deleteRevision,
         reminders = reminders,
+        onOpenNoteLink = { target -> scope.launch { onOpenNote(viewModel.resolveNoteLink(target)) } },
+        observeBacklinks = viewModel::observeBacklinks,
+        linkableNotes = allNotes,
+        templates = templates,
         onSetReminder = viewModel::setReminder,
         // Si la nota pasa a la papelera en otro dispositivo lo decide el editor (ver NoteEditorScreen).
         onTrashedElsewhere = viewModel::onNoteTrashedElsewhere,

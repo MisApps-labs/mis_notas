@@ -385,4 +385,11 @@
     <string name="attachment_too_large">Die Datei ist zu groß (maximal %1$d MB)</string>
     <string name="attachment_missing">Diese Datei wurde noch nicht heruntergeladen. Synchronisiere und versuche es erneut.</string>
     <string name="attachment_no_app">Keine App kann diese Datei öffnen</string>
+    <string name="fmt_note_link">Notiz verlinken</string>
+    <string name="backlinks">VERLINKT VON</string>
+    <string name="use_template">Vorlage verwenden</string>
+    <string name="picker_empty">Keine Notizen</string>
+    <string name="templates_folder">Vorlagenordner</string>
+    <string name="templates_folder_none">Keiner</string>
+    <string name="templates_folder_desc">Ihre Notizen erscheinen unter „Vorlage verwenden“. {{date}} und {{time}} werden dabei ersetzt.</string>
 </resources>

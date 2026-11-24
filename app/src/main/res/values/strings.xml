@@ -386,4 +386,11 @@
     <string name="attachment_too_large">The file is too large (maximum %1$d MB)</string>
     <string name="attachment_missing">This file hasn’t been downloaded yet. Sync and try again.</string>
     <string name="attachment_no_app">No app can open this file</string>
+    <string name="fmt_note_link">Link to note</string>
+    <string name="backlinks">LINKED FROM</string>
+    <string name="use_template">Use template</string>
+    <string name="picker_empty">No notes</string>
+    <string name="templates_folder">Templates folder</string>
+    <string name="templates_folder_none">None</string>
+    <string name="templates_folder_desc">Its notes are offered in “Use template”. {{date}} and {{time}} are replaced when used.</string>
 </resources>

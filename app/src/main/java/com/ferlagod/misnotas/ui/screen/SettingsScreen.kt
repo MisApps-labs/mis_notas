@@ -46,6 +46,7 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Contrast
+import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
@@ -155,6 +156,8 @@ fun SettingsScreen(
     onGridLayoutChange: (Boolean) -> Unit,
     onSortOrderChange: (SortOrder) -> Unit,
     onAutoPurgeChange: (Boolean) -> Unit,
+    folders: List<com.ferlagod.misnotas.data.local.entity.FolderEntity> = emptyList(),
+    onTemplatesFolderChange: (String?) -> Unit = {},
     onAppLockChange: (Boolean) -> Unit,
     onExport: (Uri) -> Unit,
     onImport: (List<Uri>) -> Unit,
@@ -284,6 +287,8 @@ fun SettingsScreen(
                     checked = settings.autoPurgeTrash,
                     onCheckedChange = onAutoPurgeChange
                 )
+                Divider()
+                TemplatesFolderRow(folders, settings.templatesFolderId, onTemplatesFolderChange)
             }
 
             // --- Copia de seguridad ---
@@ -524,6 +529,51 @@ private fun SwitchRow(
         }
         Spacer(modifier = Modifier.width(10.dp))
         Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+@Composable
+private fun TemplatesFolderRow(
+    folders: List<com.ferlagod.misnotas.data.local.entity.FolderEntity>,
+    current: String?,
+    onSelect: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val sorted = remember(folders) { com.ferlagod.misnotas.data.local.model.FolderTree.flatten(folders) }
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectable(selected = false, role = Role.DropdownList, onClick = { expanded = true })
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SettingIcon(Icons.Rounded.ContentPaste)
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.templates_folder), style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                Text(
+                    folders.firstOrNull { it.id == current }?.name ?: stringResource(R.string.templates_folder_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(stringResource(R.string.templates_folder_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.templates_folder_none)) },
+                leadingIcon = { RadioButton(selected = current == null, onClick = null) },
+                onClick = { onSelect(null); expanded = false }
+            )
+            sorted.forEach { (folder, level) ->
+                DropdownMenuItem(
+                    text = { Text("  ".repeat(level) + folder.name) },
+                    leadingIcon = { RadioButton(selected = folder.id == current, onClick = null) },
+                    onClick = { onSelect(folder.id); expanded = false }
+                )
+            }
+        }
     }
 }
 

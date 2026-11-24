@@ -46,6 +46,8 @@ data class AppSettingsState(
     val autoBackupFailed: Boolean = false,
     /** Ya se decidió si crear la nota de bienvenida (solo se intenta en el primer arranque). */
     val welcomeSeeded: Boolean = false,
+    /** Carpeta cuyas notas se ofrecen como plantillas (null = ninguna). */
+    val templatesFolderId: String? = null,
     /** Avisos de [Hints] que el usuario ya ha cerrado. */
     val dismissedHints: Set<String> = emptySet()
 ) {
@@ -76,6 +78,7 @@ class AppSettings private constructor(context: Context) {
         lastAutoBackup = prefs.getLong(KEY_LAST_AUTO_BACKUP, 0L),
         autoBackupFailed = prefs.getBoolean(KEY_AUTO_BACKUP_FAILED, false),
         welcomeSeeded = prefs.getBoolean(KEY_WELCOME_SEEDED, false),
+        templatesFolderId = prefs.getString(KEY_TEMPLATES_FOLDER, null),
         dismissedHints = prefs.getStringSet(KEY_DISMISSED_HINTS, null)?.toSet().orEmpty()
     )
 
@@ -100,6 +103,8 @@ class AppSettings private constructor(context: Context) {
         putBoolean(KEY_AUTO_BACKUP_FAILED, !success)
     }
 
+    fun setTemplatesFolder(folderId: String?) = update { putString(KEY_TEMPLATES_FOLDER, folderId) }
+
     fun setWelcomeSeeded() = update { putBoolean(KEY_WELCOME_SEEDED, true) }
     fun dismissHint(key: String) {
         if (key in _state.value.dismissedHints) return
@@ -114,6 +119,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_THEME = "theme_mode"
         private const val KEY_AMOLED = "amoled"
         private const val KEY_AUTO_PURGE = "auto_purge_trash"
+        private const val KEY_TEMPLATES_FOLDER = "templates_folder"
         private const val KEY_APP_LOCK = "app_lock"
         private const val KEY_AUTO_BACKUP = "auto_backup"
         private const val KEY_AUTO_BACKUP_FOLDER = "auto_backup_folder"

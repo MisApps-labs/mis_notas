@@ -399,4 +399,11 @@
     <string name="attachment_too_large">Il file è troppo grande (massimo %1$d MB)</string>
     <string name="attachment_missing">Questo file non è ancora stato scaricato. Sincronizza e riprova.</string>
     <string name="attachment_no_app">Nessuna app può aprire questo file</string>
+    <string name="fmt_note_link">Collega nota</string>
+    <string name="backlinks">COLLEGATA DA</string>
+    <string name="use_template">Usa modello</string>
+    <string name="picker_empty">Nessuna nota</string>
+    <string name="templates_folder">Cartella dei modelli</string>
+    <string name="templates_folder_none">Nessuna</string>
+    <string name="templates_folder_desc">Le sue note sono proposte in «Usa modello». {{date}} e {{time}} vengono sostituiti all’uso.</string>
 </resources>

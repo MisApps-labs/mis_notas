@@ -40,6 +40,7 @@ import com.ferlagod.misnotas.data.sync.SyncRepository
 import com.ferlagod.misnotas.data.sync.SyncState
 import com.ferlagod.misnotas.data.sync.SyncWorker
 import com.ferlagod.misnotas.data.backup.AutoBackupWorker
+import com.ferlagod.misnotas.ui.markdown.NoteLinks
 import com.ferlagod.misnotas.ui.markdown.markdownPlainText
 import com.ferlagod.misnotas.ui.markdown.markdownPreview
 import com.ferlagod.misnotas.ui.theme.NoteColor
@@ -371,6 +372,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ==========================================
     // Historial de versiones
     // ==========================================
+
+    // ==========================================
+    // Enlaces entre notas y plantillas
+    // ==========================================
+
+    /**
+     * Destino de un enlace `[[título]]`: la nota con ese título (la más reciente si hay varias)
+     * o, si no existe, una nota nueva con ese título, como en Obsidian.
+     */
+    suspend fun resolveNoteLink(title: String): String {
+        val key = NoteLinks.key(title)
+        allActiveNotes.value.filter { NoteLinks.key(it.title) == key }.maxByOrNull { it.updatedAt }?.let { return it.id }
+        noteDao.getAll().filter { !it.isDeleted && it.syncStatus != SyncStatus.PENDING_DELETE && NoteLinks.key(it.title) == key }
+            .maxByOrNull { it.updatedAt }?.let { return it.id }
+        return createNote(title.trim(), "")
+    }
+
+    /** Notas que enlazan a la nota [noteId] con `[[su título]]`. */
+    fun observeBacklinks(noteId: String): Flow<List<NoteEntity>> = allActiveNotes.map { notes ->
+        val me = notes.firstOrNull { it.id == noteId } ?: return@map emptyList()
+        val key = NoteLinks.key(me.title)
+        if (key.isEmpty()) emptyList()
+        else notes.filter { it.id != noteId && key in NoteLinks.targets(it.content) }
+    }.flowOn(Dispatchers.Default)
+
+    /** Notas de la carpeta de plantillas. */
+    val templates: StateFlow<List<NoteEntity>> = combine(allActiveNotes, settings.map { it.templatesFolderId }.distinctUntilChanged()) { notes, folder ->
+        if (folder == null) emptyList() else notes.filter { it.folderId == folder }.sortedBy { it.title.lowercase() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setTemplatesFolder(folderId: String?) = appSettings.setTemplatesFolder(folderId)
 
     // ==========================================
     // Recordatorios

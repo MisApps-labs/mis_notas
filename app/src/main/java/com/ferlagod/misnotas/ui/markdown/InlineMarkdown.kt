@@ -13,7 +13,7 @@ package com.ferlagod.misnotas.ui.markdown
  * y qué estilo lleva cada tramo ([StyleRange]). Son funciones puras para poder probarlas.
  */
 
-enum class InlineKind { BOLD, ITALIC, STRIKE, CODE, LINK, IMAGE, AUTOLINK, TAG }
+enum class InlineKind { BOLD, ITALIC, STRIKE, CODE, LINK, IMAGE, AUTOLINK, TAG, WIKILINK }
 
 /**
  * Elemento en línea en [start, end). El contenido visible está en [contentStart, contentEnd);
@@ -47,7 +47,7 @@ object InlineMarkdown {
                 }
                 '`' -> code(text, i, to)
                 '!' -> if (i + 1 < to && text[i + 1] == '[') link(text, i, to, image = true) else null
-                '[' -> link(text, i, to, image = false)
+                '[' -> (if (text.startsWith("[[", i)) wikiLink(text, i, to) else null) ?: link(text, i, to, image = false)
                 '*' -> (if (text.startsWith("**", i)) delimited(text, i, to, "**", InlineKind.BOLD) else null)
                     ?: delimited(text, i, to, "*", InlineKind.ITALIC)
                 '_' -> if (i > 0 && text[i - 1].isLetterOrDigit()) null
@@ -148,6 +148,22 @@ object InlineMarkdown {
             if (image) InlineKind.IMAGE else InlineKind.LINK,
             i, p + 1, open + 1, close, text.substring(urlStart, p)
         )
+    }
+
+    /**
+     * Enlace a otra nota: `[[Título]]` o `[[Título|texto visible]]`. [InlineToken.url] es
+     * [NoteLinks.SCHEME] + el título de destino.
+     */
+    private fun wikiLink(text: String, i: Int, to: Int): InlineToken? {
+        val close = text.indexOf("]]", i + 2)
+        if (close < 0 || close + 2 > to) return null
+        val inner = text.substring(i + 2, close)
+        if (inner.isBlank() || inner.any { it == '\n' || it == '[' || it == ']' }) return null
+        val pipe = inner.indexOf('|')
+        val target = (if (pipe >= 0) inner.substring(0, pipe) else inner).trim()
+        if (target.isEmpty()) return null
+        val contentStart = if (pipe >= 0 && pipe + 1 < inner.length) i + 2 + pipe + 1 else i + 2
+        return InlineToken(InlineKind.WIKILINK, i, close + 2, contentStart, close, NoteLinks.SCHEME + target)
     }
 
     /** `#etiqueta` (ver [com.ferlagod.misnotas.util.Tags]). */

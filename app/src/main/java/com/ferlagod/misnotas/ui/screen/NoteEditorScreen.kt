@@ -59,6 +59,8 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FormatBold
@@ -264,6 +266,13 @@ fun NoteEditorScreen(
         { kotlinx.coroutines.flow.flowOf(emptyList()) },
     onRestoreRevision: (noteId: String, revisionId: Long, onReady: (com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity) -> Unit) -> Unit = { _, _, _ -> },
     onDeleteRevision: (Long) -> Unit = {},
+    /** Abre la nota de un enlace `[[título]]` (la crea si no existe). */
+    onOpenNoteLink: (String) -> Unit = {},
+    /** Notas que enlazan a esta. */
+    observeBacklinks: (String) -> kotlinx.coroutines.flow.Flow<List<NoteEntity>> = { kotlinx.coroutines.flow.flowOf(emptyList()) },
+    /** Notas que se pueden enlazar desde la barra de formato y plantillas disponibles. */
+    linkableNotes: List<NoteEntity> = emptyList(),
+    templates: List<NoteEntity> = emptyList(),
     /** Recordatorios (id de nota -> instante) y cómo cambiar el de esta nota (null = quitarlo). */
     reminders: Map<String, Long> = emptyMap(),
     onSetReminder: (noteId: String, triggerAt: Long?) -> Unit = { _, _ -> },
@@ -317,6 +326,8 @@ fun NoteEditorScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showReminder by remember { mutableStateOf(false) }
+    var showNoteLinkPicker by remember { mutableStateOf(false) }
+    var showTemplatePicker by remember { mutableStateOf(false) }
     val notificationPermission = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { /* Si se niega, el recordatorio se guarda igual pero no podrá avisar. */ }
@@ -758,6 +769,16 @@ fun NoteEditorScreen(
                                         }
                                     }
                                 )
+                                if (templates.any { it.id != stableId }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.use_template)) },
+                                        leadingIcon = { Icon(Icons.Rounded.ContentPaste, contentDescription = null) },
+                                        onClick = {
+                                            showMenu = false
+                                            showTemplatePicker = true
+                                        }
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(if (reminderAt != null) R.string.reminder_edit else R.string.reminder_add)) },
                                     leadingIcon = { Icon(Icons.Rounded.Alarm, contentDescription = null) },
@@ -822,7 +843,8 @@ fun NoteEditorScreen(
                     onImage = {
                         photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     },
-                    onFile = { filePickerLauncher.launch(arrayOf("*/*")) }
+                    onFile = { filePickerLauncher.launch(arrayOf("*/*")) },
+                    onNoteLink = { showNoteLinkPicker = true }
                 )
             }
         },
@@ -922,8 +944,35 @@ fun NoteEditorScreen(
                                 updateBody(TextFieldValue(toggleTaskLine(textValue.text, lineIndex)), forceHistory = true)
                             },
                             onImageClick = { viewerImage = it },
-                            onImageLongClick = { start, end, _ -> openImageResize(start, end) }
+                            onImageLongClick = { start, end, _ -> openImageResize(start, end) },
+                            onOpenNoteLink = { target ->
+                                persistChanges(sync = false)
+                                onOpenNoteLink(target)
+                            }
                         )
+                        val backlinks by remember(stableId) { observeBacklinks(stableId) }.collectAsState(initial = emptyList())
+                        if (backlinks.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            HorizontalDivider(thickness = 0.5.dp)
+                            Text(
+                                stringResource(R.string.backlinks),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                            )
+                            val untitledLabel = stringResource(R.string.untitled)
+                            backlinks.forEach { link ->
+                                Text(
+                                    "↩ " + link.title.ifBlank { untitledLabel },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = primary,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { persistChanges(sync = false); onOpenNote(link.id) }
+                                        .padding(vertical = 6.dp)
+                                )
+                            }
+                        }
                     }
                 } else {
                     BasicTextField(
@@ -1012,6 +1061,40 @@ fun NoteEditorScreen(
             confirmButton = {
                 TextButton(onClick = { showColorPicker = false }) { Text(stringResource(R.string.close)) }
             }
+        )
+    }
+
+    if (showNoteLinkPicker) {
+        NotePickerDialog(
+            title = stringResource(R.string.fmt_note_link),
+            notes = linkableNotes.filter { it.id != stableId && it.title.isNotBlank() },
+            onPick = { note ->
+                showNoteLinkPicker = false
+                insert(com.ferlagod.misnotas.ui.markdown.NoteLinks.linkTo(note.title))
+            },
+            onDismiss = { showNoteLinkPicker = false }
+        )
+    }
+
+    if (showTemplatePicker) {
+        NotePickerDialog(
+            title = stringResource(R.string.use_template),
+            notes = templates.filter { it.id != stableId },
+            onPick = { template ->
+                showTemplatePicker = false
+                val filled = com.ferlagod.misnotas.util.Templates.fill(template.content)
+                if (title.isBlank()) title = com.ferlagod.misnotas.util.Templates.fill(template.title)
+                if (textValue.text.isBlank()) {
+                    val newValue = TextFieldValue(filled, TextRange(filled.length))
+                    history.record(textValue, newValue, force = true)
+                    textValue = newValue
+                } else {
+                    insert(filled)
+                }
+                isReadingMode = false
+                persistChanges(sync = false)
+            },
+            onDismiss = { showTemplatePicker = false }
         )
     }
 
@@ -1366,7 +1449,8 @@ private fun FormattingToolbar(
     onLink: () -> Unit,
     onRule: () -> Unit,
     onImage: () -> Unit,
-    onFile: () -> Unit
+    onFile: () -> Unit,
+    onNoteLink: () -> Unit
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val isHeading = activeBlock == LinePrefix.HEADING1 || activeBlock == LinePrefix.HEADING2 || activeBlock == LinePrefix.HEADING3
@@ -1418,6 +1502,7 @@ private fun FormattingToolbar(
             ToolbarButton(Icons.Rounded.Image, stringResource(R.string.fmt_image), primary, onImage)
             ToolbarButton(Icons.Rounded.AttachFile, stringResource(R.string.fmt_file), primary, onFile)
             ToolbarButton(Icons.Rounded.Link, stringResource(R.string.fmt_link), primary, onLink, active = InlineKind.LINK in activeInline)
+            ToolbarButton(Icons.Rounded.DataObject, stringResource(R.string.fmt_note_link), primary, onNoteLink)
             ToolbarButton(Icons.Rounded.Code, stringResource(R.string.fmt_code), primary, onCode, active = InlineKind.CODE in activeInline)
             ToolbarButton(Icons.Rounded.HorizontalRule, stringResource(R.string.fmt_rule), primary, onRule)
         }

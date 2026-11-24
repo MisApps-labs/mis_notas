@@ -227,7 +227,9 @@ fun MarkdownReader(
     onToggleChecklist: (lineIndex: Int) -> Unit,
     onImageClick: ((Any) -> Unit)? = null,
     /** Pulsación larga en una imagen (para cambiar su tamaño): rango [start, end) y su dirección. */
-    onImageLongClick: ((start: Int, end: Int, source: String) -> Unit)? = null
+    onImageLongClick: ((start: Int, end: Int, source: String) -> Unit)? = null,
+    /** Pulsación en un enlace `[[nota]]`: recibe el título de destino. */
+    onOpenNoteLink: ((String) -> Unit)? = null
 ) {
     val blocks = remember(markdownText) { parseBlocks(markdownText) }
     val linkColor = primaryBlue
@@ -237,10 +239,13 @@ fun MarkdownReader(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val systemHandler = androidx.compose.ui.platform.LocalUriHandler.current
     val currentText by androidx.compose.runtime.rememberUpdatedState(markdownText)
+    val currentNoteLink by androidx.compose.runtime.rememberUpdatedState(onOpenNoteLink)
     val uriHandler = remember(systemHandler) {
         object : androidx.compose.ui.platform.UriHandler {
             override fun openUri(uri: String) {
-                if (uri.startsWith(com.ferlagod.misnotas.data.attachment.AttachmentStore.SCHEME)) {
+                if (uri.startsWith(NoteLinks.SCHEME)) {
+                    currentNoteLink?.invoke(uri.removePrefix(NoteLinks.SCHEME))
+                } else if (uri.startsWith(com.ferlagod.misnotas.data.attachment.AttachmentStore.SCHEME)) {
                     val id = uri.removePrefix(com.ferlagod.misnotas.data.attachment.AttachmentStore.SCHEME).substringBefore('#')
                     val name = com.ferlagod.misnotas.data.attachment.AttachmentStore.fileNames(currentText)[id]
                     scope.launch { com.ferlagod.misnotas.util.AttachmentOpener.open(context, id, name) }

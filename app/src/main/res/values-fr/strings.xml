@@ -399,4 +399,11 @@
     <string name="attachment_too_large">Le fichier est trop volumineux (maximum %1$d Mo)</string>
     <string name="attachment_missing">Ce fichier n’a pas encore été téléchargé. Synchronisez et réessayez.</string>
     <string name="attachment_no_app">Aucune app ne peut ouvrir ce fichier</string>
+    <string name="fmt_note_link">Lier une note</string>
+    <string name="backlinks">LIÉE DEPUIS</string>
+    <string name="use_template">Utiliser un modèle</string>
+    <string name="picker_empty">Aucune note</string>
+    <string name="templates_folder">Dossier des modèles</string>
+    <string name="templates_folder_none">Aucun</string>
+    <string name="templates_folder_desc">Ses notes sont proposées dans « Utiliser un modèle ». {{date}} et {{time}} sont remplacés à l’usage.</string>
 </resources>

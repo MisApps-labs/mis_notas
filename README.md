@@ -48,6 +48,8 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - **Editor cómodo**: deshacer/rehacer, las listas continúan solas al pulsar Intro, barra de formato que actúa sobre la línea o la selección, contador de palabras y tiempo de lectura.
 - **Imágenes** adjuntas (varias a la vez; se comprimen a WebP y se sincronizan como ficheros cifrados aparte) con visor a pantalla completa y zoom, y **cualquier otro archivo** (PDF, audio, documentos…, hasta 25 MB) que se abre con la app que elijas.
 - **Selección múltiple** con pulsación larga: fijar, cambiar color, mover de carpeta o borrar varias notas a la vez, y **"Deshacer"** al mandar algo a la papelera.
+- **Enlaces entre notas** con `[[Título]]` o `[[Título|texto]]` (como en Obsidian): se abren con un toque, crean la nota si no existe y cada nota muestra qué notas la enlazan.
+- **Plantillas**: elige una carpeta de plantillas en Ajustes y úsalas desde el menú de la nota; `{{fecha}}` y `{{hora}}` se rellenan solos.
 - **Etiquetas** con `#hashtags` en el propio texto (`#trabajo`, `#viaje/2026` con subetiquetas), como en Obsidian o Bear: aparecen en el inicio con su recuento, en cada tarjeta y resaltadas en la nota.
 - **Vista de cuadrícula o lista**, orden por fecha o título, progreso de las listas de tareas en cada tarjeta y **búsqueda instantánea** que ignora acentos, resalta los resultados y admite operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
 - **Widget** con botón de nota nueva y tus notas fijadas y recientes, **mosaico de ajustes rápidos** «Nueva nota» y **recordatorios** por nota (con notificación que no enseña el contenido si la app está bloqueada).
