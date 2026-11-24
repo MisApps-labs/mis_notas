@@ -63,6 +63,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     androidResources {
         // Declara los idiomas al sistema (Ajustes → Apps → Mis Notas → Idioma en Android 13+).
         generateLocaleConfig = true
@@ -119,6 +122,10 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
+    // Pruebas de integración de la sincronización contra un servidor WebDAV falso
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

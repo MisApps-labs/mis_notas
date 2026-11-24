@@ -30,9 +30,7 @@ data class NextcloudCredentials(
  * Almacén seguro (EncryptedSharedPreferences, clave en Android Keystore) para credenciales,
  * parámetros de derivación y la clave de cifrado desbloqueada.
  */
-class AuthPreferences private constructor(context: Context) {
-
-    private val prefs: SharedPreferences = createPrefs(context.applicationContext)
+class AuthPreferences private constructor(private val prefs: SharedPreferences) {
 
     companion object {
         private const val TAG = "AuthPreferences"
@@ -58,8 +56,13 @@ class AuthPreferences private constructor(context: Context) {
 
         fun getInstance(context: Context): AuthPreferences =
             INSTANCE ?: synchronized(this) {
-                INSTANCE ?: AuthPreferences(context).also { INSTANCE = it }
+                INSTANCE ?: AuthPreferences(createPrefs(context.applicationContext)).also { INSTANCE = it }
             }
+
+        /** Pruebas: preferencias normales en lugar de las cifradas con el Keystore (no existe en Robolectric). */
+        @androidx.annotation.VisibleForTesting
+        fun installForTesting(prefs: SharedPreferences): AuthPreferences =
+            AuthPreferences(prefs).also { INSTANCE = it }
 
         /** Intentos de abrir las preferencias antes de darlas por ilegibles. */
         private const val OPEN_ATTEMPTS = 3
