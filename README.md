@@ -91,12 +91,16 @@ Funciona con **Nextcloud, ownCloud y cualquier servidor WebDAV** (Synology, Seaf
 
 Instala la app en el otro dispositivo y conéctalo con la **misma cuenta y la misma contraseña maestra**. Si la contraseña no coincide, la app te avisará y no subirá nada.
 
+### Cifrado v3 (opcional)
+
+En **Ajustes → Sincronización → Cifrado** puedes actualizar la bóveda a **v3**: Argon2id, **clave de recuperación**, **cambio de contraseña maestra**, **rotación de la clave**, ficheros con relleno y borrados cifrados. Hazlo cuando todos tus clientes lo admitan: las versiones que solo conocen v2 (también la app de escritorio y la extensión actuales) dejan de sincronizar con esa cuenta hasta que se actualicen, sin estropear nada.
+
 > [!WARNING]
-> **Si olvidas la contraseña maestra, no hay forma de recuperar las notas guardadas en el servidor.** Ni el administrador de Nextcloud ni el autor de la app pueden descifrarlas. Guárdala en un gestor de contraseñas.
+> **Si olvidas la contraseña maestra y no tienes clave de recuperación, no hay forma de recuperar las notas guardadas en el servidor.** Ni el administrador de Nextcloud ni el autor de la app pueden descifrarlas. Guárdala en un gestor de contraseñas.
 
 ## Seguridad en breve
 
-- La clave se deriva de tu contraseña maestra con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y un *salt* aleatorio.
+- La clave se deriva de tu contraseña maestra con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y un *salt* aleatorio; con el cifrado v3, con **Argon2id** y cifrado en sobre.
 - Cada nota, carpeta e imagen se cifra con AES-256-GCM antes de salir del teléfono. El título, el contenido, la carpeta, el color y las fechas van todos dentro del bloque cifrado.
 - Cada bloque cifrado queda vinculado a su identificador, así que el servidor no puede intercambiar ni modificar ficheros sin que la app lo detecte.
 - Las credenciales y la clave se guardan en el dispositivo con `EncryptedSharedPreferences` (Android Keystore).
@@ -158,7 +162,7 @@ app/src/main/res/values*/strings.xml   Textos (inglés por defecto; es, fr, de, 
 
 ## Limitaciones conocidas
 
-- Todavía no se puede **cambiar la contraseña maestra** de una cuenta existente.
+- Cambiar la contraseña maestra, rotar la clave y la clave de recuperación necesitan el cifrado v3.
 - Los adjuntos tienen un máximo de 25 MB cada uno.
 
 ¿Ideas o fallos? Abre una [incidencia](https://github.com/MisApps-labs/mis_notas/issues).

@@ -69,6 +69,7 @@ import com.ferlagod.misnotas.ui.screen.AppLockScreen
 import com.ferlagod.misnotas.ui.screen.FoldersScreen
 import com.ferlagod.misnotas.ui.screen.AccountActions
 import com.ferlagod.misnotas.ui.screen.LoginScreen
+import com.ferlagod.misnotas.ui.screen.VaultActions
 import com.ferlagod.misnotas.ui.screen.NoteEditorScreen
 import com.ferlagod.misnotas.ui.screen.NotesActions
 import com.ferlagod.misnotas.ui.screen.NotesScreen
@@ -316,6 +317,15 @@ private fun AppNavigationHost(
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val safetyCopyTime by viewModel.safetyCopyTime.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    val vaultState by viewModel.vaultState.collectAsStateWithLifecycle()
+    val vaultActions = remember(viewModel) {
+        VaultActions(
+            upgrade = viewModel::upgradeVault,
+            changePassword = viewModel::changeMasterPassword,
+            createRecovery = viewModel::createRecoveryKey,
+            rotate = viewModel::rotateEncryptionKey
+        )
+    }
     val loginFlow by viewModel.loginFlow.collectAsStateWithLifecycle()
     val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
     val trustedCerts by viewModel.trustedCerts.collectAsStateWithLifecycle()
@@ -400,6 +410,10 @@ private fun AppNavigationHost(
                 trustedCerts = trustedCerts,
                 accountActions = accountActions,
                 onConnected = { navController.goHome() },
+                canRecover = vaultState.v3 && vaultState.hasRecovery,
+                onRecover = { key, newPassword, onError ->
+                    viewModel.recoverWithKey(key, newPassword, onSuccess = { navController.goHome() }, onError = onError)
+                },
                 onUnlock = { masterPass, onError ->
                     viewModel.unlockWithPassword(masterPass, onSuccess = { navController.goHome() }, onError = onError)
                 },
@@ -458,6 +472,8 @@ private fun AppNavigationHost(
                 diagnostics = diagnostics,
                 trustedCerts = trustedCerts,
                 accountActions = accountActions,
+                vaultState = vaultState,
+                vaultActions = vaultActions,
                 onDisconnectNextcloud = viewModel::disconnectNextcloud,
                 onTriggerSync = viewModel::triggerSync,
                 onThemeChange = viewModel::setThemeMode,

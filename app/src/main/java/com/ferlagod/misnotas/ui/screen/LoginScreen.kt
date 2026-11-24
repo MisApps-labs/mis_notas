@@ -81,8 +81,13 @@ fun LoginScreen(
     onConnected: () -> Unit,
     onUnlock: (masterPass: String, onError: (String) -> Unit) -> Unit,
     onResetConfig: () -> Unit,
-    onSkip: () -> Unit = {}
+    onSkip: () -> Unit = {},
+    /** La bóveda es v3 con clave de recuperación: se ofrece entrar con ella. */
+    canRecover: Boolean = false,
+    onRecover: (key: String, newPassword: String, onError: (String) -> Unit) -> Unit = { _, _, _ -> }
 ) {
+    var showRecover by remember { mutableStateOf(false) }
+    if (showRecover) RecoverDialog(onRecover = onRecover, onDismiss = { showRecover = false })
     val isDark = isAppInDarkTheme()
     val focusManager = LocalFocusManager.current
 
@@ -263,6 +268,15 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
+                    if (canRecover) {
+                        TextButton(onClick = { showRecover = true }) {
+                            Text(
+                                text = stringResource(R.string.vault_forgot_password),
+                                color = primaryBlue,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                     TextButton(onClick = onResetConfig) {
                         Text(
                             text = stringResource(R.string.reset_account),

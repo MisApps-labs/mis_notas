@@ -39,6 +39,7 @@ import com.ferlagod.misnotas.data.sync.SyncMerger
 import com.ferlagod.misnotas.data.sync.SyncRepository
 import com.ferlagod.misnotas.data.sync.SyncState
 import com.ferlagod.misnotas.data.sync.SyncWorker
+import com.ferlagod.misnotas.data.sync.WrongMasterPasswordException
 import com.ferlagod.misnotas.data.backup.AutoBackupWorker
 import com.ferlagod.misnotas.ui.markdown.NoteLinks
 import com.ferlagod.misnotas.ui.markdown.markdownPlainText
@@ -318,6 +319,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (_isConfigured.value && _isUnlocked.value) {
             SyncWorker.schedule(application)
             triggerSync()
+        }
+        // Otro dispositivo actualizó la bóveda a v3: se pide la contraseña para recoger sus claves.
+        viewModelScope.launch {
+            syncState.collect { state ->
+                val cause = (state as? SyncState.Error)?.cause
+                if (cause is WrongMasterPasswordException && cause.reason == WrongMasterPasswordException.Reason.VAULT_UPGRADED) lock()
+            }
         }
     }
 
@@ -639,10 +647,87 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch {
             try {
-                val key = syncRepository.vault.unlockLocal(masterPassword)
-                authPreferences.saveDerivedKey(key)
+                val ring = syncRepository.unlock(masterPassword)
+                authPreferences.saveKeyring(ring)
+                refreshVaultState()
                 _isUnlocked.value = true
                 NotesWidget.requestUpdate(getApplication())
+                SyncWorker.schedule(getApplication())
+                triggerSync()
+                onSuccess()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onError(syncRepository.friendlyMessage(e))
+            }
+        }
+    }
+
+    // ==========================================
+    // Bóveda v3: actualizar, contraseña, recuperación y rotación
+    // ==========================================
+
+    data class VaultInfoState(val v3: Boolean, val hasRecovery: Boolean)
+
+    private val _vaultState = MutableStateFlow(VaultInfoState(syncRepository.vault.isLocalV3(), syncRepository.vault.localHasRecovery()))
+    val vaultState: StateFlow<VaultInfoState> = _vaultState.asStateFlow()
+
+    private fun refreshVaultState() {
+        _vaultState.value = VaultInfoState(syncRepository.vault.isLocalV3(), syncRepository.vault.localHasRecovery())
+    }
+
+    private fun vaultOperation(onError: (String) -> Unit, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onError(syncRepository.friendlyMessage(e))
+            } finally {
+                refreshVaultState()
+            }
+        }
+    }
+
+    /** Pasa la bóveda a v3. [onDone] recibe la clave de recuperación si se pidió crear una. */
+    fun upgradeVault(masterPassword: String, withRecovery: Boolean, onDone: (String?) -> Unit, onError: (String) -> Unit) =
+        vaultOperation(onError) {
+            val change = syncRepository.withVault { client, ring -> syncRepository.vault.upgradeToV3(client, ring, masterPassword, withRecovery) }
+            // Se reescribe todo en v3 (con relleno y lápidas cifradas).
+            syncRepository.reencryptAll()
+            triggerSync()
+            onDone(change.recoveryKey)
+        }
+
+    fun changeMasterPassword(oldPassword: String, newPassword: String, onDone: () -> Unit, onError: (String) -> Unit) =
+        vaultOperation(onError) {
+            syncRepository.withVault { client, ring -> syncRepository.vault.changePassword(client, ring, oldPassword, newPassword) }
+            onDone()
+        }
+
+    fun createRecoveryKey(onDone: (String) -> Unit, onError: (String) -> Unit) = vaultOperation(onError) {
+        val change = syncRepository.withVault { client, ring -> syncRepository.vault.createRecoveryKey(client, ring) }
+        onDone(change.recoveryKey ?: "")
+    }
+
+    fun rotateEncryptionKey(onDone: () -> Unit, onError: (String) -> Unit) = vaultOperation(onError) {
+        syncRepository.withVault { client, ring -> syncRepository.vault.rotateKey(client, ring) }
+        syncRepository.reencryptAll()
+        triggerSync()
+        onDone()
+    }
+
+    /** Pantalla de desbloqueo: entrar con la clave de recuperación y poner una contraseña nueva. */
+    fun recoverWithKey(recoveryKey: String, newPassword: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val credentials = authPreferences.getCredentials() ?: return@launch
+                withContext(Dispatchers.IO) {
+                    syncRepository.vault.recover(syncRepository.createClient(credentials), recoveryKey, newPassword)
+                }
+                refreshVaultState()
+                _isUnlocked.value = true
                 SyncWorker.schedule(getApplication())
                 triggerSync()
                 onSuccess()

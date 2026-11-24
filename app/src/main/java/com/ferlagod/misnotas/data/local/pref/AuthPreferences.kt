@@ -13,6 +13,7 @@ import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.ferlagod.misnotas.security.CryptoManager
+import com.ferlagod.misnotas.security.Keyring
 import javax.crypto.SecretKey
 
 /**
@@ -44,6 +45,10 @@ class AuthPreferences private constructor(context: Context) {
         private const val KEY_ITERATIONS = "key_kdf_iterations"
         private const val KEY_CHECK = "key_check"
         private const val KEY_DERIVED_KEY_BASE64 = "key_derived_key_base64"
+        private const val KEY_KEYRING_JSON = "key_keyring_json"
+        private const val KEY_VMK_BASE64 = "key_vmk_base64"
+        private const val KEY_KEYINFO_V3 = "key_keyinfo_v3"
+        private const val KEY_REENCRYPT = "key_reencrypt_pending"
         private const val KEY_LAST_SYNC = "key_last_sync"
         const val DEFAULT_FOLDER_NAME = "MisNotas"
 
@@ -157,7 +162,15 @@ class AuthPreferences private constructor(context: Context) {
             remove(KEY_SALT_BASE64)
             remove(KEY_ITERATIONS)
             remove(KEY_CHECK)
+            remove(KEY_KEYINFO_V3)
         }
+    }
+
+    /** Copia del `keyinfo.json` v3 (para desbloquear sin conexión y restaurarlo si desaparece). */
+    fun getKeyInfoV3(): String? = prefs.getString(KEY_KEYINFO_V3, null)
+
+    fun saveKeyInfoV3(raw: String?) {
+        prefs.edit { if (raw != null) putString(KEY_KEYINFO_V3, raw) else remove(KEY_KEYINFO_V3) }
     }
 
     // ------------------------------------------------------------------
@@ -178,10 +191,44 @@ class AuthPreferences private constructor(context: Context) {
     }
 
     fun clearDerivedKey() {
-        prefs.edit { remove(KEY_DERIVED_KEY_BASE64) }
+        prefs.edit {
+            remove(KEY_DERIVED_KEY_BASE64)
+            remove(KEY_KEYRING_JSON)
+            remove(KEY_VMK_BASE64)
+        }
     }
 
-    fun isKeyUnlocked(): Boolean = getDerivedKey() != null
+    /** Guarda las claves desbloqueadas: la única de una bóveda v2 o el llavero y la VMK de una v3. */
+    fun saveKeyring(ring: Keyring) {
+        prefs.edit {
+            val vmk = ring.vmk
+            if (vmk == null) {
+                putString(KEY_DERIVED_KEY_BASE64, CryptoManager.keyToBase64(ring.currentKey))
+                remove(KEY_KEYRING_JSON)
+                remove(KEY_VMK_BASE64)
+            } else {
+                putString(KEY_KEYRING_JSON, ring.toJson().toString())
+                putString(KEY_VMK_BASE64, CryptoManager.keyToBase64(vmk))
+                // La clave v2 sigue a mano por si hace falta (es la "v2" del llavero).
+                ring.key(Keyring.LEGACY_KID)?.let { putString(KEY_DERIVED_KEY_BASE64, CryptoManager.keyToBase64(it)) }
+            }
+        }
+    }
+
+    fun getKeyring(): Keyring? {
+        val ringJson = prefs.getString(KEY_KEYRING_JSON, null)
+        val vmk = prefs.getString(KEY_VMK_BASE64, null)
+        if (ringJson != null && vmk != null) {
+            return try {
+                Keyring.fromJson(org.json.JSONObject(ringJson), CryptoManager.keyFromBase64(vmk))
+            } catch (_: Exception) {
+                null
+            }
+        }
+        return getDerivedKey()?.let { Keyring.legacy(it) }
+    }
+
+    fun isKeyUnlocked(): Boolean = getKeyring() != null
 
     // ------------------------------------------------------------------
     // Estado
@@ -189,6 +236,13 @@ class AuthPreferences private constructor(context: Context) {
 
     fun setLastSync(timestamp: Long) {
         prefs.edit { putLong(KEY_LAST_SYNC, timestamp) }
+    }
+
+    /** Hay que volver a cifrar y subir todo con la clave actual (ver SyncRepository.reencryptAll). */
+    fun isReencryptPending(): Boolean = prefs.getBoolean(KEY_REENCRYPT, false)
+
+    fun setReencryptPending(pending: Boolean) {
+        prefs.edit { putBoolean(KEY_REENCRYPT, pending) }
     }
 
     fun getLastSync(): Long? = prefs.getLong(KEY_LAST_SYNC, 0L).takeIf { it > 0L }

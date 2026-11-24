@@ -60,4 +60,8 @@ interface FolderDao {
             "syncStatus = CASE WHEN syncStatus = 'SYNCED' THEN 'PENDING_UPLOAD' ELSE syncStatus END"
     )
     suspend fun resetSyncMetadata()
+
+    /** Volver a subir todo (con su ETag, para sobrescribir): al cambiar la clave de cifrado. */
+    @Query("UPDATE folders SET syncStatus = 'PENDING_UPLOAD' WHERE syncStatus = 'SYNCED'")
+    suspend fun markAllForReupload()
 }

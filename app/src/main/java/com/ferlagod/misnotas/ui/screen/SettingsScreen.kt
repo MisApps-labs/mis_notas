@@ -149,6 +149,8 @@ fun SettingsScreen(
     diagnostics: DiagnosticsState,
     trustedCerts: List<TrustedCertificates.Info>,
     accountActions: AccountActions,
+    vaultState: com.ferlagod.misnotas.ui.viewmodel.MainViewModel.VaultInfoState? = null,
+    vaultActions: VaultActions? = null,
     onDisconnectNextcloud: () -> Unit,
     onTriggerSync: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
@@ -403,6 +405,12 @@ fun SettingsScreen(
                         onDisconnectNextcloud = onDisconnectNextcloud,
                         onTriggerSync = onTriggerSync
                     )
+                }
+                if (isConfigured && vaultState != null && vaultActions != null) {
+                    Divider()
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        VaultSection(vaultState, vaultActions)
+                    }
                 }
             }
 

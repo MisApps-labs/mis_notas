@@ -19,13 +19,30 @@ Mis Notas protege el contenido de tus notas frente a **quien controla o accede a
 | Título, texto, imágenes, carpetas, colores, fechas, si está fijada o en la papelera | Número de notas y carpetas, tamaño aproximado de cada fichero |
 | Integridad: el servidor no puede modificar, mezclar ni intercambiar ficheros sin que la app lo detecte | Cuándo se crea, modifica o borra cada fichero (metadatos de WebDAV) |
 | Credenciales y clave en el dispositivo (Android Keystore) | Un teléfono desbloqueado y comprometido (root, malware) |
-| | Que el servidor borre ficheros o devuelva versiones antiguas (*rollback*) |
+| | Que el servidor borre ficheros o devuelva versiones antiguas (*rollback*; v3 lo detecta, ver abajo) |
 
 En el teléfono la base de datos de notas **no está cifrada por la app**: depende del cifrado de almacenamiento de Android y del aislamiento entre apps. Las notas se excluyen de la copia de seguridad en la nube de Google.
 
 ## Diseño criptográfico
 
-### Derivación de clave
+Hay dos formatos de bóveda. Las cuentas empiezan en **v2**, que entienden todos los clientes. Desde
+Ajustes → Sincronización → Cifrado se puede pasar a **v3** (ver [docs/SYNC_FORMAT.md](docs/SYNC_FORMAT.md)).
+
+### Formato v3: cifrado en sobre
+
+- Contraseña maestra → **Argon2id** (RFC 9106, 64 MiB, 3 pasadas, 4 carriles) → clave que cifra una
+  **clave maestra de la bóveda (VMK)** aleatoria.
+- **Clave de recuperación** opcional (160 bits aleatorios, HKDF-SHA256) que cifra la misma VMK: permite
+  entrar y poner una contraseña nueva si se olvida.
+- La VMK cifra el **llavero** de claves de datos. **Cambiar la contraseña** solo vuelve a cifrar la VMK.
+  **Rotar la clave** añade una clave de datos aleatoria nueva y vuelve a cifrar y subir todas las notas,
+  carpetas y adjuntos.
+- Los ficheros indican su `kid`, el payload se **rellena a múltiplos de 512 bytes** y las **lápidas van cifradas**.
+- Un dispositivo en v3 se niega a sincronizar si el servidor le ofrece un `keyinfo.json` v2 o un llavero con
+  menos claves (intento de bajar la seguridad).
+- En el dispositivo se guardan la VMK y el llavero en `EncryptedSharedPreferences`; "Bloquear" los borra.
+
+### Formato v2: derivación de clave
 
 - `PBKDF2WithHmacSHA256`, 600.000 iteraciones (las cuentas creadas con la v1.0 conservan 65.536), salt aleatorio de 16 bytes, clave de 256 bits.
 - El salt y el número de iteraciones se publican en `keyinfo.json` dentro de la carpeta de Nextcloud, para que cualquier dispositivo derive la misma clave.
@@ -50,6 +67,7 @@ En el teléfono la base de datos de notas **no está cifrada por la app**: depen
 
 ## Limitaciones conocidas
 
-- No se puede cambiar la contraseña maestra ni rotar la clave.
+- En el formato v2 no se puede cambiar la contraseña maestra ni rotar la clave (sí en v3).
 - No hay protección contra *rollback*: un servidor malicioso podría servir una versión anterior, válida, de una nota.
-- Las lápidas de borrado (`"deleted": true`) no van cifradas: revelan el identificador y la fecha de borrado de una nota, pero no su contenido.
+- En v2 las lápidas de borrado (`"deleted": true`) no van cifradas: revelan el identificador y la fecha de borrado de una nota, pero no su contenido. En v3 van cifradas; las lápidas creadas antes de actualizar siguen como estaban.
+- Los adjuntos no llevan relleno: su tamaño aproximado sigue siendo visible.

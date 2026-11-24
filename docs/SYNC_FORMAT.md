@@ -1,4 +1,4 @@
-# Formato de sincronización (v2)
+# Formato de sincronización (v2 y v3)
 
 Este documento describe cómo guarda Mis Notas los datos en Nextcloud, para quien quiera escribir otro cliente o herramientas de exportación.
 
@@ -78,13 +78,70 @@ Las lápidas no se eliminan, para que los dispositivos que estaban sin conexión
 
 `att_<uuid>.bin` = bytes en bruto `IV ‖ texto cifrado ‖ etiqueta` (sin Base64), AAD `attachment:<uuid>`. Son inmutables.
 
+## Formato v3 (opcional)
+
+Una bóveda v2 puede actualizarse a v3 desde Ajustes → Sincronización → Cifrado. Las cuentas nuevas
+siguen empezando en v2 para que los clientes que aún no conocen v3 puedan usarlas. Un cliente que
+solo entiende v2 **debe detenerse** al ver `"version": 3` en `keyinfo.json` o en un fichero, sin
+sobrescribir nada.
+
+### keyinfo.json v3 (cifrado en sobre)
+
+```json
+{
+  "format": "misnotas-keyinfo",
+  "version": 3,
+  "kdf": { "name": "argon2id", "version": 19, "memoryKiB": 65536, "iterations": 3, "parallelism": 4, "salt": "<base64, 16 bytes>" },
+  "password": "<base64 AES-GCM(KEK, base64(VMK)), AAD 'vmk:password'>",
+  "recovery": "<base64 AES-GCM(RK, base64(VMK)), AAD 'vmk:recovery'>",
+  "recoverySalt": "<base64, 16 bytes>",
+  "keyring": "<base64 AES-GCM(VMK, JSON del llavero), AAD 'keyring'>"
+}
+```
+
+- `KEK = Argon2id(contraseña en NFC, salt, memoryKiB, iterations, parallelism)`, 32 bytes.
+- `VMK`: clave maestra de la bóveda, 32 bytes aleatorios. El campo cifrado contiene la VMK **en Base64**.
+- Clave de recuperación: 20 bytes aleatorios mostrados en Base32 (RFC 4648, sin relleno) en 8 grupos de
+  4 caracteres separados por guiones. `RK = HKDF-SHA256(ikm = clave, salt = recoverySalt, info = "misnotas-recovery-v1")`.
+  `recovery` y `recoverySalt` solo existen si se ha creado una clave de recuperación.
+- Llavero (descifrado):
+
+  ```json
+  { "current": "k3fa92c", "keys": { "v2": "<base64 clave>", "k3fa92c": "<base64 clave>" } }
+  ```
+
+  `v2` es la clave PBKDF2 de la bóveda v2 original (así no hay que volver a cifrar nada al migrar).
+  Rotar la clave añade otra aleatoria y la marca como `current`; las anteriores se conservan para leer
+  ficheros que aún no se hayan reescrito.
+
+Cambiar la contraseña solo cambia `kdf.salt` y `password`. Todos los cambios de `keyinfo.json` se
+suben con `If-Match`.
+
+### Notas, carpetas y lápidas v3
+
+```json
+{ "format": "misnotas", "version": 3, "type": "note", "id": "<uuid>", "kid": "k3fa92c", "payload": "<base64>" }
+```
+
+- `payload` se cifra con la clave `kid` del llavero y AAD `<type>:<id>`, igual que en v2.
+- El JSON descifrado lleva además `"rev"` (número de versión del fichero, ver más abajo) y `"pad"`: una
+  cadena de espacios para que su tamaño en UTF-8 sea múltiplo de 512 bytes. Hay que ignorarla.
+- Las **lápidas** van cifradas igual: su payload es `{ "deleted": true, "deletedAt": <ms>, "rev": n, "pad": "…" }`.
+  El servidor no puede distinguir una lápida de una nota.
+- Los ficheros sin `kid` (v1 y v2) se descifran con la clave `v2` del llavero.
+
+### Adjuntos v3
+
+Mismo formato binario que en v2 (`IV ‖ texto cifrado ‖ etiqueta`, AAD `attachment:<uuid>`), cifrados con
+la clave `current`. No indican su `kid`: se prueba la clave actual y después las anteriores.
+
 ## Reglas del cliente
 
 1. Antes de sincronizar, descarga `keyinfo.json` y verifica la clave. Si falta o no coincide, aborta.
 2. Lista la carpeta con `PROPFIND Depth: 1` y compara cada `getetag` con el último ETag conocido.
 3. Descarga solo los ficheros cuyo ETag cambió y fusiona:
    - Sin cambios locales → se acepta la versión remota, salvo que su `updatedAt` sea anterior al local (una vuelta atrás): entonces se conserva la local y se vuelve a subir, y si el texto difiere la remota queda como copia " (conflicto)".
-   - Con cambios locales y contenido distinto → gana la de `updatedAt` más reciente y la otra se guarda como nota nueva con el sufijo " (conflicto)".
+   - Con cambios locales y contenido distinto → se fusionan línea a línea con la última versión común (diff3). Si los dos lados cambiaron las mismas líneas, gana la de `updatedAt` más reciente y la otra se guarda como nota nueva con el sufijo " (conflicto)".
    - Lápida verificada → se borra en local, salvo que haya cambios locales sin subir.
 4. Sube con `If-Match: "<etag>"` (o `If-None-Match: *` si es nuevo). Si el servidor responde `412`, vuelve al paso 2.
 5. La app nunca borra ficheros de notas o carpetas (deja lápidas). Si uno conocido desaparece del servidor, la nota pasa a la papelera y la carpeta se conserva, y ambas se vuelven a subir.

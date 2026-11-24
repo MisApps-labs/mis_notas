@@ -135,6 +135,10 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE isDeleted = 0 AND syncStatus != 'PENDING_DELETE' ORDER BY isPinned DESC, updatedAt DESC LIMIT :limit")
     suspend fun getWidgetNotes(limit: Int): List<NoteEntity>
 
+    /** Volver a subir todo (con su ETag, para sobrescribir): al cambiar la clave de cifrado. */
+    @Query("UPDATE notes SET syncStatus = 'PENDING_UPLOAD' WHERE syncStatus = 'SYNCED'")
+    suspend fun markAllForReupload()
+
     /** Notas visibles (fuera de la papelera y sin borrado pendiente). */
     @Query("SELECT COUNT(*) FROM notes WHERE isDeleted = 0 AND syncStatus != 'PENDING_DELETE'")
     suspend fun countLive(): Int

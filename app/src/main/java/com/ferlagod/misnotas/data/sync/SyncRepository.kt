@@ -43,7 +43,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.security.GeneralSecurityException
 import java.util.UUID
-import javax.crypto.SecretKey
+import com.ferlagod.misnotas.security.Keyring
 import javax.net.ssl.SSLException
 
 enum class SyncStage(@StringRes val labelRes: Int) {
@@ -136,6 +136,8 @@ class SyncRepository private constructor(context: Context) {
                     WrongMasterPasswordException.Reason.WRONG -> R.string.err_wrong_master
                     WrongMasterPasswordException.Reason.MISMATCH_EXISTING -> R.string.err_master_mismatch_existing
                     WrongMasterPasswordException.Reason.CHANGED_ON_SERVER -> R.string.err_master_changed
+                    WrongMasterPasswordException.Reason.VAULT_UPGRADED -> R.string.err_vault_upgraded
+                    WrongMasterPasswordException.Reason.BAD_RECOVERY_KEY -> R.string.err_bad_recovery
                 }
             )
             is VaultException -> res.getString(
@@ -143,6 +145,10 @@ class SyncRepository private constructor(context: Context) {
                     VaultException.Reason.LEGACY_NO_SALT -> R.string.err_legacy_no_salt
                     VaultException.Reason.NO_LOCAL_DATA -> R.string.err_no_local_vault
                     VaultException.Reason.KEYINFO_MISSING -> R.string.err_keyinfo_missing
+                    VaultException.Reason.KEYINFO_DOWNGRADED -> R.string.err_keyinfo_downgraded
+                    VaultException.Reason.ALREADY_V3 -> R.string.err_already_v3
+                    VaultException.Reason.NOT_V3 -> R.string.err_not_v3
+                    VaultException.Reason.CONCURRENT_CHANGE -> R.string.err_vault_concurrent
                 }
             )
             is WebDavAuthException -> res.getString(R.string.err_auth)
@@ -199,7 +205,7 @@ class SyncRepository private constructor(context: Context) {
             try {
                 val client = createClient(credentials)
                 client.ensureRootFolder()
-                val (key, _) = vault.unlockRemote(client, masterPassword)
+                val (ring, _) = vault.unlockRemote(client, masterPassword)
 
                 try {
                     val untitled = LanguageManager.localizedContext(appContext).getString(R.string.untitled)
@@ -220,7 +226,7 @@ class SyncRepository private constructor(context: Context) {
                         historyDao.clearBases()
                     }
                     authPreferences.saveCredentials(credentials)
-                    authPreferences.saveDerivedKey(key)
+                    authPreferences.saveKeyring(ring)
                 }
                 Result.success(Unit)
             } catch (e: Exception) {
@@ -229,14 +235,40 @@ class SyncRepository private constructor(context: Context) {
             }
         }
 
+    /**
+     * Desbloqueo con el servidor (si hay conexión): así se recoge una bóveda que otro
+     * dispositivo haya actualizado a v3. Sin conexión se usa la copia local.
+     */
+    suspend fun unlock(masterPassword: String): Keyring = withContext(Dispatchers.IO) {
+        val credentials = authPreferences.getCredentials()
+        if (credentials != null) {
+            try {
+                return@withContext vault.unlockRemote(createClient(credentials), masterPassword).first
+            } catch (e: java.io.IOException) {
+                if (e is WebDavAuthException) throw e
+                Log.w(TAG, "Sin conexión: desbloqueo local", e)
+            }
+        }
+        vault.unlockLocal(masterPassword)
+    }
+
+    /** Ejecuta una operación de la bóveda con el cerrojo de la sincronización tomado. */
+    suspend fun <T> withVault(block: suspend (WebDavClient, Keyring) -> T): T = withContext(Dispatchers.IO) {
+        val credentials = authPreferences.getCredentials() ?: throw VaultException(VaultException.Reason.NO_LOCAL_DATA)
+        syncMutex.withLock {
+            val ring = authPreferences.getKeyring() ?: throw VaultException(VaultException.Reason.NO_LOCAL_DATA)
+            block(createClient(credentials), ring)
+        }
+    }
+
     // ==================================================================
     // Sincronización
     // ==================================================================
 
     suspend fun synchronize(): Result<Unit> = withContext(Dispatchers.IO) {
         val credentials = authPreferences.getCredentials()
-        val key = authPreferences.getDerivedKey()
-        if (credentials == null || key == null) {
+        val ring = authPreferences.getKeyring()
+        if (credentials == null || ring == null) {
             _syncState.value = SyncState.Idle
             return@withContext Result.success(Unit)
         }
@@ -253,7 +285,7 @@ class SyncRepository private constructor(context: Context) {
             var rounds = 0
             do {
                 rerunRequested = false
-                runRound(client, key)
+                runRound(client, ring)
                 rounds++
             } while (rerunRequested && rounds < MAX_ROUNDS)
 
@@ -270,10 +302,27 @@ class SyncRepository private constructor(context: Context) {
         }
     }
 
-    private suspend fun runRound(client: WebDavClient, key: SecretKey) {
+    private val reencrypting: Boolean get() = authPreferences.isReencryptPending()
+
+    /**
+     * Tras actualizar la bóveda a v3 o rotar la clave: vuelve a subir todas las notas, carpetas y
+     * adjuntos con la clave actual (así en el servidor no queda nada cifrado con la anterior).
+     */
+    suspend fun reencryptAll() {
+        database.withTransaction {
+            noteDao.markAllForReupload()
+            folderDao.markAllForReupload()
+            attachmentDao.markAllPendingUpload()
+        }
+        authPreferences.setReencryptPending(true)
+    }
+
+    private suspend fun runRound(client: WebDavClient, ring: Keyring) {
         _syncState.value = SyncState.Syncing(SyncStage.CONNECTING)
         client.ensureRootFolder()
-        if (vault.verifyRemoteKey(client, key)) {
+        val (current, restored) = vault.verifyRemoteKey(client, ring)
+        @Suppress("NAME_SHADOWING") val ring = current
+        if (restored) {
             // La bóveda se ha restaurado en una carpeta vacía o incompleta: se vuelve a subir
             // todo lo que tiene este dispositivo, sin interpretar lo que falta como borrados.
             database.withTransaction {
@@ -288,16 +337,19 @@ class SyncRepository private constructor(context: Context) {
         val remote = client.listRemoteFiles().associateBy { it.name }
 
         _syncState.value = SyncState.Syncing(SyncStage.DOWNLOADING)
-        pullFolders(client, key, remote)
-        pullNotes(client, key, remote)
+        pullFolders(client, ring, remote)
+        pullNotes(client, ring, remote)
         migrateLegacyImages()
-        downloadMissingAttachments(client, key, remote)
+        downloadMissingAttachments(client, ring, remote)
 
         _syncState.value = SyncState.Syncing(SyncStage.UPLOADING)
-        pushFolders(client, key, remote)
-        pushAttachments(client, key)
-        pushNotes(client, key, remote)
+        pushFolders(client, ring, remote)
+        pushAttachments(client, ring)
+        pushNotes(client, ring, remote)
 
+        if (reencrypting && !rerunRequested && warnings == 0) {
+            authPreferences.setReencryptPending(false)
+        }
         cleanupOrphanAttachments(client, remote)
         historyDao.deleteOrphanBases()
         tombstoneDao.getAll().filter { it.fileName !in remote }.forEach { tombstoneDao.delete(it.fileName) }
@@ -311,7 +363,7 @@ class SyncRepository private constructor(context: Context) {
         remote.values.filter { it.name.startsWith(prefix) && it.name.endsWith(ext) }
             .associateBy { it.name.removePrefix(prefix).removeSuffix(ext) }
 
-    private suspend fun pullFolders(client: WebDavClient, key: SecretKey, remote: Map<String, RemoteFileMeta>) {
+    private suspend fun pullFolders(client: WebDavClient, ring: Keyring, remote: Map<String, RemoteFileMeta>) {
         val remoteFolders = idsWithPrefix(remote, FOLDER_PREFIX, JSON_EXT)
         val knownTombstones = tombstoneDao.getAll().associate { it.fileName to it.etag }
 
@@ -320,7 +372,7 @@ class SyncRepository private constructor(context: Context) {
             if (local?.remoteEtag != null && local.remoteEtag == meta.etag) continue
             if (local == null && meta.etag != null && knownTombstones[meta.name] == meta.etag) continue
 
-            val record = downloadRecord(meta.name) { RemoteCodec.decodeFolder(client.downloadText(meta.name), id, key) }
+            val record = downloadRecord(meta.name) { RemoteCodec.decodeFolder(client.downloadText(meta.name), id, ring) }
                 ?: continue
 
             if (record is RemoteRecord.Tombstone) tombstoneDao.upsert(RemoteTombstoneEntity(meta.name, meta.etag))
@@ -374,7 +426,7 @@ class SyncRepository private constructor(context: Context) {
         database.withTransaction { deleteFolderAndDetachInTx(id) }
     }
 
-    private suspend fun pullNotes(client: WebDavClient, key: SecretKey, remote: Map<String, RemoteFileMeta>) {
+    private suspend fun pullNotes(client: WebDavClient, ring: Keyring, remote: Map<String, RemoteFileMeta>) {
         val remoteNotes = idsWithPrefix(remote, NOTE_PREFIX, JSON_EXT)
         val res = LanguageManager.localizedContext(appContext)
         val conflictSuffix = res.getString(R.string.conflict_suffix)
@@ -389,7 +441,7 @@ class SyncRepository private constructor(context: Context) {
             if (local?.remoteEtag != null && local.remoteEtag == meta.etag) continue
             if (local == null && meta.etag != null && knownTombstones[meta.name] == meta.etag) continue
 
-            val record = downloadRecord(meta.name) { RemoteCodec.decodeNote(client.downloadText(meta.name), id, key) }
+            val record = downloadRecord(meta.name) { RemoteCodec.decodeNote(client.downloadText(meta.name), id, ring) }
                 ?: continue
 
             if (record is RemoteRecord.Tombstone) tombstoneDao.upsert(RemoteTombstoneEntity(meta.name, meta.etag))
@@ -521,7 +573,7 @@ class SyncRepository private constructor(context: Context) {
 
     private suspend fun downloadMissingAttachments(
         client: WebDavClient,
-        key: SecretKey,
+        ring: Keyring,
         remote: Map<String, RemoteFileMeta>
     ) {
         val contents = noteDao.getAllLiveContents()
@@ -532,7 +584,7 @@ class SyncRepository private constructor(context: Context) {
             if (attachmentStore.exists(id)) continue
             val name = attachmentFile(id)
             if (name !in remote) continue
-            val bytes = downloadRecord(name) { RemoteCodec.decryptAttachment(client.download(name), id, key) } ?: continue
+            val bytes = downloadRecord(name) { RemoteCodec.decryptAttachment(client.download(name), id, ring) } ?: continue
             attachmentStore.write(id, bytes)
             attachmentDao.upsert(
                 AttachmentEntity(
@@ -550,10 +602,10 @@ class SyncRepository private constructor(context: Context) {
     // Subida
     // ------------------------------------------------------------------
 
-    private suspend fun pushFolders(client: WebDavClient, key: SecretKey, remote: Map<String, RemoteFileMeta>) {
+    private suspend fun pushFolders(client: WebDavClient, ring: Keyring, remote: Map<String, RemoteFileMeta>) {
         for (folder in folderDao.getFoldersBySyncStatus(SyncStatus.PENDING_UPLOAD)) {
             val name = folderFile(folder.id)
-            val etag = putGuarded(client, name, RemoteCodec.encodeFolder(folder, key), folder.remoteEtag) ?: continue
+            val etag = putGuarded(client, name, RemoteCodec.encodeFolder(folder, ring), folder.remoteEtag) ?: continue
             if (folderDao.markSynced(folder.id, folder.updatedAt, etag.value) == 0) {
                 folderDao.setRemoteEtag(folder.id, etag.value)
             }
@@ -566,22 +618,23 @@ class SyncRepository private constructor(context: Context) {
                 folderDao.deletePermanently(folder.id)
                 continue
             }
-            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_FOLDER, folder.id, folder.updatedAt, key), knownEtag)
+            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_FOLDER, folder.id, folder.updatedAt, ring), knownEtag)
                 ?: continue
             tombstoneDao.upsert(RemoteTombstoneEntity(name, etag.value))
             folderDao.deletePermanently(folder.id)
         }
     }
 
-    private suspend fun pushAttachments(client: WebDavClient, key: SecretKey) {
+    private suspend fun pushAttachments(client: WebDavClient, ring: Keyring) {
         for (attachment in attachmentDao.getPendingUpload()) {
             if (!attachmentStore.exists(attachment.id)) {
                 attachmentDao.delete(attachment.id)
                 continue
             }
-            val encrypted = RemoteCodec.encryptAttachment(attachmentStore.read(attachment.id), attachment.id, key)
+            val encrypted = RemoteCodec.encryptAttachment(attachmentStore.read(attachment.id), attachment.id, ring)
             try {
-                client.upload(attachmentFile(attachment.id), encrypted, "application/octet-stream", ifNoneMatch = true)
+                // Al volver a cifrar (rotación de clave) se sobrescribe; si no, son inmutables.
+                client.upload(attachmentFile(attachment.id), encrypted, "application/octet-stream", ifNoneMatch = !reencrypting)
             } catch (_: WebDavPreconditionFailedException) {
                 // Ya existe en el servidor: los adjuntos son inmutables.
             }
@@ -589,10 +642,10 @@ class SyncRepository private constructor(context: Context) {
         }
     }
 
-    private suspend fun pushNotes(client: WebDavClient, key: SecretKey, remote: Map<String, RemoteFileMeta>) {
+    private suspend fun pushNotes(client: WebDavClient, ring: Keyring, remote: Map<String, RemoteFileMeta>) {
         for (note in noteDao.getNotesBySyncStatus(SyncStatus.PENDING_UPLOAD)) {
             val name = noteFile(note.id)
-            val etag = putGuarded(client, name, RemoteCodec.encodeNote(note, key), note.remoteEtag) ?: continue
+            val etag = putGuarded(client, name, RemoteCodec.encodeNote(note, ring), note.remoteEtag) ?: continue
             historyDao.upsertBase(NoteSyncBaseEntity(note.id, note.title, note.content))
             if (noteDao.markSynced(note.id, note.updatedAt, etag.value) == 0) {
                 // El usuario editó la nota mientras se subía: sigue pendiente, pero con el ETag nuevo.
@@ -607,7 +660,7 @@ class SyncRepository private constructor(context: Context) {
                 noteDao.deletePermanently(note.id)
                 continue
             }
-            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_NOTE, note.id, note.updatedAt, key), knownEtag)
+            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_NOTE, note.id, note.updatedAt, ring), knownEtag)
                 ?: continue
             tombstoneDao.upsert(RemoteTombstoneEntity(name, etag.value))
             noteDao.deletePermanently(note.id)

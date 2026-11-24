@@ -68,7 +68,11 @@ class WrongMasterPasswordException(val reason: Reason = Reason.WRONG) : Exceptio
         /** No descifra las notas v1.0 ya existentes en el servidor. */
         MISMATCH_EXISTING,
         /** La bóveda del servidor cambió y la clave local ya no sirve. */
-        CHANGED_ON_SERVER
+        CHANGED_ON_SERVER,
+        /** Otro dispositivo actualizó la bóveda a v3: hay que volver a escribir la contraseña. */
+        VAULT_UPGRADED,
+        /** La clave de recuperación no es válida o no es la de esta bóveda. */
+        BAD_RECOVERY_KEY
     }
 }
 
@@ -80,6 +84,14 @@ class VaultException(val reason: Reason) : Exception("Vault error: $reason") {
         /** No hay parámetros de cifrado guardados en el dispositivo. */
         NO_LOCAL_DATA,
         /** Falta keyinfo.json en el servidor. */
-        KEYINFO_MISSING
+        KEYINFO_MISSING,
+        /** El servidor tiene una bóveda más antigua o con menos claves que la de este dispositivo. */
+        KEYINFO_DOWNGRADED,
+        /** La bóveda ya está en v3. */
+        ALREADY_V3,
+        /** La operación necesita una bóveda v3. */
+        NOT_V3,
+        /** Otro dispositivo cambió la bóveda a la vez; hay que volver a intentarlo. */
+        CONCURRENT_CHANGE
     }
 }

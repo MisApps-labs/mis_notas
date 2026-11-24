@@ -114,6 +114,8 @@ dependencies {
 
     // Credenciales cifradas
     implementation(libs.androidx.security.crypto)
+    // Argon2id y HKDF (Java puro) para el formato de cifrado v3
+    implementation(libs.bouncycastle.prov)
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
