@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Añadido
 - Cifrado v3 opcional (Ajustes → Sincronización → Cifrado): Argon2id, cifrado en sobre, clave de recuperación, cambio de contraseña maestra, rotación de la clave de datos, relleno de los ficheros a 512 bytes y lápidas cifradas. Las cuentas siguen en v2 hasta que el usuario actualiza.
+- Protección contra vueltas atrás en v3: contador `rev` por fichero y `manifest.json` cifrado; si el servidor devuelve una versión anterior, no se aplica y se avisa en Ajustes.
 - Inicio de sesión de Nextcloud en el navegador (Login Flow v2): ya no hace falta crear ni copiar la contraseña de aplicación.
 - Servidores WebDAV genéricos (Synology, Seafile, Koofr, oCIS, rclone, Apache…), además de Nextcloud y ownCloud.
 - «Probar conexión»: diagnóstico paso a paso (DNS, certificado, credenciales, carpeta, escritura, `If-Match`, listado y contenido).

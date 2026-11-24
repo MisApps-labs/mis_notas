@@ -433,4 +433,8 @@
     <string name="vault_recover_title">Zugang wiederherstellen</string>
     <string name="vault_recover_desc">Gib deinen Wiederherstellungsschlüssel ein und wähle ein neues Master-Passwort. Dafür ist eine Verbindung zum Server nötig.</string>
     <string name="vault_recover_button">Wiederherstellen</string>
+    <plurals name="sync_rollbacks">
+        <item quantity="one">⚠ Der Server lieferte %1$d Datei in einer älteren Version; sie wurde nicht übernommen.</item>
+        <item quantity="other">⚠ Der Server lieferte %1$d Dateien in einer älteren Version; sie wurden nicht übernommen.</item>
+    </plurals>
 </resources>

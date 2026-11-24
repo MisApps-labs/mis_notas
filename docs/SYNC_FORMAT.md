@@ -135,6 +135,27 @@ suben con `If-Match`.
 Mismo formato binario que en v2 (`IV ‖ texto cifrado ‖ etiqueta`, AAD `attachment:<uuid>`), cifrados con
 la clave `current`. No indican su `kid`: se prueba la clave actual y después las anteriores.
 
+### manifest.json y `rev` (protección contra vueltas atrás)
+
+En v3 cada subida de una nota, carpeta o lápida lleva `rev` = último `rev` conocido de ese fichero + 1.
+`manifest.json` guarda el `rev` más alto conocido de cada fichero y un número de secuencia:
+
+```json
+{ "format": "misnotas-manifest", "version": 1, "kid": "k3fa92c", "payload": "<base64 AES-GCM, AAD 'manifest'>" }
+```
+
+Payload descifrado: `{ "seq": 12, "revs": { "note_<uuid>.json": 4, … }, "pad": "…" }`.
+
+- Al empezar cada ronda el cliente lo descarga y combina sus `revs` con los suyos (máximo de cada uno).
+  Si su `seq` es menor que el más alto que ha visto, el servidor está sirviendo un manifiesto viejo.
+- Un fichero v3 con `rev` menor que el conocido es una **vuelta atrás**: no se aplica, se vuelve a subir la
+  versión local encima y se avisa al usuario. Los ficheros v2 que quedan de antes de actualizar tienen `rev` 0.
+- Al terminar la ronda, si algo cambió, se sube con `seq + 1` e `If-Match`; si falla con `412`, se combina en
+  la siguiente ronda.
+
+No detecta que el servidor enseñe a cada dispositivo una historia distinta sin que lleguen a cruzarse
+(ataque de bifurcación).
+
 ## Reglas del cliente
 
 1. Antes de sincronizar, descarga `keyinfo.json` y verifica la clave. Si falta o no coincide, aborta.

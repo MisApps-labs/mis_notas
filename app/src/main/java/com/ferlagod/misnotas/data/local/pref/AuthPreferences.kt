@@ -49,6 +49,7 @@ class AuthPreferences private constructor(context: Context) {
         private const val KEY_VMK_BASE64 = "key_vmk_base64"
         private const val KEY_KEYINFO_V3 = "key_keyinfo_v3"
         private const val KEY_REENCRYPT = "key_reencrypt_pending"
+        private const val KEY_MANIFEST_SEQ = "key_manifest_seq"
         private const val KEY_LAST_SYNC = "key_last_sync"
         const val DEFAULT_FOLDER_NAME = "MisNotas"
 
@@ -243,6 +244,13 @@ class AuthPreferences private constructor(context: Context) {
 
     fun setReencryptPending(pending: Boolean) {
         prefs.edit { putBoolean(KEY_REENCRYPT, pending) }
+    }
+
+    /** Número de secuencia más alto visto en `manifest.json` (protección contra vueltas atrás). */
+    fun getManifestSeq(): Long = prefs.getLong(KEY_MANIFEST_SEQ, 0L)
+
+    fun setManifestSeq(seq: Long) {
+        prefs.edit { putLong(KEY_MANIFEST_SEQ, seq) }
     }
 
     fun getLastSync(): Long? = prefs.getLong(KEY_LAST_SYNC, 0L).takeIf { it > 0L }

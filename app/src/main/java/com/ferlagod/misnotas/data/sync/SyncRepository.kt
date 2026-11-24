@@ -18,6 +18,7 @@ import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
 import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
 import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
+import com.ferlagod.misnotas.data.local.entity.RemoteRevEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
 import com.ferlagod.misnotas.data.local.model.NoteContentParser
 import com.ferlagod.misnotas.data.local.model.SyncStatus
@@ -63,7 +64,9 @@ sealed interface SyncState {
     data class Success(
         val timestamp: Long = System.currentTimeMillis(),
         val warnings: Int = 0,
-        val protectedNotes: Int = 0
+        val protectedNotes: Int = 0,
+        /** Ficheros que el servidor devolvió en una versión anterior a la conocida (bóveda v3). */
+        val rollbacks: Int = 0
     ) : SyncState
     data class Error(val message: String, val cause: Throwable? = null) : SyncState
 }
@@ -88,6 +91,7 @@ class SyncRepository private constructor(context: Context) {
     private val attachmentDao = database.attachmentDao()
     private val tombstoneDao = database.remoteTombstoneDao()
     private val historyDao = database.noteHistoryDao()
+    private val revDao = database.remoteRevDao()
     private val attachmentStore = AttachmentStore(appContext)
 
     val authPreferences = AuthPreferences.getInstance(appContext)
@@ -102,6 +106,10 @@ class SyncRepository private constructor(context: Context) {
     private var rerunRequested = false
     private var warnings = 0
     private var protectedNotes = 0
+    private var rollbacks = 0
+    /** `rev` más alto conocido de cada fichero (bóveda v3), cargado al empezar cada ronda. */
+    private val knownRevs = HashMap<String, Long>()
+    private var revsDirty = false
 
     companion object {
         private const val TAG = "SyncRepository"
@@ -224,7 +232,9 @@ class SyncRepository private constructor(context: Context) {
                         attachmentDao.markAllPendingUpload()
                         tombstoneDao.clear()
                         historyDao.clearBases()
+                        revDao.clear()
                     }
+                    authPreferences.setManifestSeq(0)
                     authPreferences.saveCredentials(credentials)
                     authPreferences.saveKeyring(ring)
                 }
@@ -282,6 +292,7 @@ class SyncRepository private constructor(context: Context) {
             val client = createClient(credentials)
             warnings = 0
             protectedNotes = 0
+            rollbacks = 0
             var rounds = 0
             do {
                 rerunRequested = false
@@ -291,7 +302,7 @@ class SyncRepository private constructor(context: Context) {
 
             val now = System.currentTimeMillis()
             authPreferences.setLastSync(now)
-            _syncState.value = SyncState.Success(now, warnings, protectedNotes)
+            _syncState.value = SyncState.Success(now, warnings, protectedNotes, rollbacks)
             Result.success(Unit)
         } catch (e: Exception) {
             Log.w(TAG, "synchronize", e)
@@ -335,6 +346,7 @@ class SyncRepository private constructor(context: Context) {
         }
 
         val remote = client.listRemoteFiles().associateBy { it.name }
+        if (ring.isV3) readManifest(client, ring, remote[Manifest.FILE_NAME])
 
         _syncState.value = SyncState.Syncing(SyncStage.DOWNLOADING)
         pullFolders(client, ring, remote)
@@ -350,9 +362,80 @@ class SyncRepository private constructor(context: Context) {
         if (reencrypting && !rerunRequested && warnings == 0) {
             authPreferences.setReencryptPending(false)
         }
+        if (ring.isV3) writeManifest(client, ring, remote[Manifest.FILE_NAME])
         cleanupOrphanAttachments(client, remote)
         historyDao.deleteOrphanBases()
         tombstoneDao.getAll().filter { it.fileName !in remote }.forEach { tombstoneDao.delete(it.fileName) }
+    }
+
+    // ------------------------------------------------------------------
+    // Protección contra vueltas atrás (v3)
+    // ------------------------------------------------------------------
+
+    private suspend fun readManifest(client: WebDavClient, ring: Keyring, meta: RemoteFileMeta?) {
+        knownRevs.clear()
+        revDao.getAll().forEach { knownRevs[it.fileName] = it.rev }
+        revsDirty = false
+        if (meta == null) {
+            // Sin manifiesto (bóveda recién actualizada) o borrado: se crea con lo que se sabe.
+            revsDirty = true
+            return
+        }
+        val manifest = downloadRecord(Manifest.FILE_NAME) { Manifest.decode(client.downloadText(Manifest.FILE_NAME), ring) } ?: return
+        if (manifest.seq < authPreferences.getManifestSeq()) {
+            Log.w(TAG, "El servidor devuelve un manifiesto anterior (${manifest.seq} < ${authPreferences.getManifestSeq()})")
+            rollbacks++
+            revsDirty = true
+        } else {
+            authPreferences.setManifestSeq(manifest.seq)
+        }
+        for ((name, rev) in manifest.revs) {
+            if (rev > (knownRevs[name] ?: 0L)) knownRevs[name] = rev
+        }
+        if (manifest.revs.keys != knownRevs.keys || knownRevs.any { (k, v) -> manifest.revs[k] != v }) revsDirty = true
+        saveRevs()
+    }
+
+    private suspend fun saveRevs() {
+        revDao.upsertAll(knownRevs.map { RemoteRevEntity(it.key, it.value) })
+    }
+
+    /**
+     * true si [rev] (de un fichero v3) es anterior al último conocido: el servidor está
+     * devolviendo una versión vieja. Los ficheros v2 (rev 0) que aún no se han reescrito no cuentan.
+     */
+    private fun isRollback(ring: Keyring, name: String, rev: Long): Boolean {
+        if (!ring.isV3) return false
+        val known = knownRevs[name] ?: return false
+        if (rev < known) {
+            Log.w(TAG, "Vuelta atrás en $name: rev $rev < $known")
+            rollbacks++
+            return true
+        }
+        return false
+    }
+
+    private fun seenRev(ring: Keyring, name: String, rev: Long) {
+        if (!ring.isV3 || rev <= (knownRevs[name] ?: 0L)) return
+        knownRevs[name] = rev
+        revsDirty = true
+    }
+
+    private fun nextRev(name: String): Long = (knownRevs[name] ?: 0L) + 1
+
+    private suspend fun writeManifest(client: WebDavClient, ring: Keyring, meta: RemoteFileMeta?) {
+        saveRevs()
+        if (!revsDirty) return
+        val seq = authPreferences.getManifestSeq() + 1
+        val body = Manifest(seq, knownRevs.toMap()).encode(ring)
+        try {
+            client.uploadText(Manifest.FILE_NAME, body, ifMatch = meta?.etag, ifNoneMatch = meta?.etag == null)
+            authPreferences.setManifestSeq(seq)
+            revsDirty = false
+        } catch (_: WebDavPreconditionFailedException) {
+            // Otro dispositivo lo actualizó a la vez: se combina en la siguiente ronda.
+            rerunRequested = true
+        }
     }
 
     // ------------------------------------------------------------------
@@ -374,6 +457,16 @@ class SyncRepository private constructor(context: Context) {
 
             val record = downloadRecord(meta.name) { RemoteCodec.decodeFolder(client.downloadText(meta.name), id, ring) }
                 ?: continue
+            val folderRev = revOf(record)
+            if (isRollback(ring, meta.name, folderRev)) {
+                // No se aplica: si la carpeta existe aquí, se vuelve a subir encima.
+                if (local != null) {
+                    folderDao.setRemoteEtag(id, meta.etag)
+                    folderDao.updateSyncStatus(id, SyncStatus.PENDING_UPLOAD)
+                }
+                continue
+            }
+            seenRev(ring, meta.name, folderRev)
 
             if (record is RemoteRecord.Tombstone) tombstoneDao.upsert(RemoteTombstoneEntity(meta.name, meta.etag))
 
@@ -443,6 +536,16 @@ class SyncRepository private constructor(context: Context) {
 
             val record = downloadRecord(meta.name) { RemoteCodec.decodeNote(client.downloadText(meta.name), id, ring) }
                 ?: continue
+            val noteRev = revOf(record)
+            if (isRollback(ring, meta.name, noteRev)) {
+                // No se aplica: si la nota existe aquí, se vuelve a subir encima de la versión vieja.
+                if (local != null && local.syncStatus != SyncStatus.PENDING_DELETE) {
+                    noteDao.setRemoteEtag(id, meta.etag)
+                    noteDao.updateSyncStatus(id, SyncStatus.PENDING_UPLOAD)
+                }
+                continue
+            }
+            seenRev(ring, meta.name, noteRev)
 
             if (record is RemoteRecord.Tombstone) tombstoneDao.upsert(RemoteTombstoneEntity(meta.name, meta.etag))
 
@@ -605,7 +708,9 @@ class SyncRepository private constructor(context: Context) {
     private suspend fun pushFolders(client: WebDavClient, ring: Keyring, remote: Map<String, RemoteFileMeta>) {
         for (folder in folderDao.getFoldersBySyncStatus(SyncStatus.PENDING_UPLOAD)) {
             val name = folderFile(folder.id)
-            val etag = putGuarded(client, name, RemoteCodec.encodeFolder(folder, ring), folder.remoteEtag) ?: continue
+            val rev = nextRev(name)
+            val etag = putGuarded(client, name, RemoteCodec.encodeFolder(folder, ring, rev), folder.remoteEtag) ?: continue
+            seenRev(ring, name, rev)
             if (folderDao.markSynced(folder.id, folder.updatedAt, etag.value) == 0) {
                 folderDao.setRemoteEtag(folder.id, etag.value)
             }
@@ -618,8 +723,10 @@ class SyncRepository private constructor(context: Context) {
                 folderDao.deletePermanently(folder.id)
                 continue
             }
-            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_FOLDER, folder.id, folder.updatedAt, ring), knownEtag)
+            val rev = nextRev(name)
+            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_FOLDER, folder.id, folder.updatedAt, ring, rev), knownEtag)
                 ?: continue
+            seenRev(ring, name, rev)
             tombstoneDao.upsert(RemoteTombstoneEntity(name, etag.value))
             folderDao.deletePermanently(folder.id)
         }
@@ -645,7 +752,9 @@ class SyncRepository private constructor(context: Context) {
     private suspend fun pushNotes(client: WebDavClient, ring: Keyring, remote: Map<String, RemoteFileMeta>) {
         for (note in noteDao.getNotesBySyncStatus(SyncStatus.PENDING_UPLOAD)) {
             val name = noteFile(note.id)
-            val etag = putGuarded(client, name, RemoteCodec.encodeNote(note, ring), note.remoteEtag) ?: continue
+            val rev = nextRev(name)
+            val etag = putGuarded(client, name, RemoteCodec.encodeNote(note, ring, rev), note.remoteEtag) ?: continue
+            seenRev(ring, name, rev)
             historyDao.upsertBase(NoteSyncBaseEntity(note.id, note.title, note.content))
             if (noteDao.markSynced(note.id, note.updatedAt, etag.value) == 0) {
                 // El usuario editó la nota mientras se subía: sigue pendiente, pero con el ETag nuevo.
@@ -660,11 +769,18 @@ class SyncRepository private constructor(context: Context) {
                 noteDao.deletePermanently(note.id)
                 continue
             }
-            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_NOTE, note.id, note.updatedAt, ring), knownEtag)
+            val rev = nextRev(name)
+            val etag = putGuarded(client, name, RemoteCodec.encodeTombstone(RemoteCodec.TYPE_NOTE, note.id, note.updatedAt, ring, rev), knownEtag)
                 ?: continue
+            seenRev(ring, name, rev)
             tombstoneDao.upsert(RemoteTombstoneEntity(name, etag.value))
             noteDao.deletePermanently(note.id)
         }
+    }
+
+    private fun revOf(record: RemoteRecord<*>): Long = when (record) {
+        is RemoteRecord.Live -> record.rev
+        is RemoteRecord.Tombstone -> record.rev
     }
 
     private suspend fun snapshot(note: NoteEntity, reason: NoteRevisionEntity.Reason) {

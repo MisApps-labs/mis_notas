@@ -684,7 +684,8 @@ private fun NextcloudSection(
                     is SyncState.Error -> stringResource(R.string.status_error, syncState.message)
                     is SyncState.Success -> stringResource(R.string.status_synced, formatSyncTime(syncState.timestamp)) +
                         (if (syncState.warnings > 0) " " + pluralStringResource(R.plurals.sync_warnings, syncState.warnings, syncState.warnings) else "") +
-                        (if (syncState.protectedNotes > 0) " " + pluralStringResource(R.plurals.sync_protected_notes, syncState.protectedNotes, syncState.protectedNotes) else "")
+                        (if (syncState.protectedNotes > 0) " " + pluralStringResource(R.plurals.sync_protected_notes, syncState.protectedNotes, syncState.protectedNotes) else "") +
+                        (if (syncState.rollbacks > 0) " " + pluralStringResource(R.plurals.sync_rollbacks, syncState.rollbacks, syncState.rollbacks) else "")
                     SyncState.Idle -> lastSync?.let { stringResource(R.string.status_last_sync, formatSyncTime(it)) }
                         ?: stringResource(R.string.status_pending)
                 }

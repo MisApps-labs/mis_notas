@@ -434,4 +434,8 @@
     <string name="vault_recover_title">Recover access</string>
     <string name="vault_recover_desc">Enter your recovery key and choose a new master password. It needs a connection to your server.</string>
     <string name="vault_recover_button">Recover</string>
+    <plurals name="sync_rollbacks">
+        <item quantity="one">⚠ The server returned %1$d file in an older version; it wasn’t applied.</item>
+        <item quantity="other">⚠ The server returned %1$d files in an older version; they weren’t applied.</item>
+    </plurals>
 </resources>

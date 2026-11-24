@@ -197,7 +197,7 @@ class ConnectionDiagnostics(private val context: Context) {
     }
 
     private fun isAppFile(name: String): Boolean =
-        name == KeyInfo.FILE_NAME || name.startsWith(".misnotas") ||
+        name == KeyInfo.FILE_NAME || name == com.ferlagod.misnotas.data.sync.Manifest.FILE_NAME || name.startsWith(".misnotas") ||
             (name.startsWith(SyncRepository.NOTE_PREFIX) && name.endsWith(SyncRepository.JSON_EXT)) ||
             (name.startsWith(SyncRepository.FOLDER_PREFIX) && name.endsWith(SyncRepository.JSON_EXT)) ||
             (name.startsWith(SyncRepository.ATTACHMENT_PREFIX) && name.endsWith(SyncRepository.BIN_EXT))

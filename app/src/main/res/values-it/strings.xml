@@ -447,4 +447,9 @@
     <string name="vault_recover_title">Recupera l’accesso</string>
     <string name="vault_recover_desc">Inserisci la chiave di recupero e scegli una nuova password principale. Serve la connessione al server.</string>
     <string name="vault_recover_button">Recupera</string>
+    <plurals name="sync_rollbacks">
+        <item quantity="one">⚠ Il server ha restituito %1$d file in una versione precedente; non è stato applicato.</item>
+        <item quantity="many">⚠ Il server ha restituito %1$d file in una versione precedente; non sono stati applicati.</item>
+        <item quantity="other">⚠ Il server ha restituito %1$d file in una versione precedente; non sono stati applicati.</item>
+    </plurals>
 </resources>

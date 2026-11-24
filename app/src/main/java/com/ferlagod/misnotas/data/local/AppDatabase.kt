@@ -17,6 +17,7 @@ import com.ferlagod.misnotas.data.local.dao.FolderDao
 import com.ferlagod.misnotas.data.local.dao.NoteDao
 import com.ferlagod.misnotas.data.local.dao.NoteHistoryDao
 import com.ferlagod.misnotas.data.local.dao.ReminderDao
+import com.ferlagod.misnotas.data.local.dao.RemoteRevDao
 import com.ferlagod.misnotas.data.local.dao.RemoteTombstoneDao
 import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
@@ -24,6 +25,7 @@ import com.ferlagod.misnotas.data.local.entity.NoteEntity
 import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
 import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
 import com.ferlagod.misnotas.data.local.entity.ReminderEntity
+import com.ferlagod.misnotas.data.local.entity.RemoteRevEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
 
 /**
@@ -37,9 +39,10 @@ import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
         RemoteTombstoneEntity::class,
         NoteRevisionEntity::class,
         NoteSyncBaseEntity::class,
-        ReminderEntity::class
+        ReminderEntity::class,
+        RemoteRevEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -51,6 +54,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun remoteTombstoneDao(): RemoteTombstoneDao
     abstract fun noteHistoryDao(): NoteHistoryDao
     abstract fun reminderDao(): ReminderDao
+    abstract fun remoteRevDao(): RemoteRevDao
 
     companion object {
         private const val DATABASE_NAME = "misnotas.db"
@@ -152,13 +156,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v4 -> v5: versiones conocidas de los ficheros remotos (protección contra vueltas atrás). */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `remote_revs` (`fileName` TEXT NOT NULL, `rev` INTEGER NOT NULL, PRIMARY KEY(`fileName`))")
+            }
+        }
+
         private fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
         }
     }

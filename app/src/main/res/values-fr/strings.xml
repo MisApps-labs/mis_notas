@@ -447,4 +447,9 @@
     <string name="vault_recover_title">Récupérer l’accès</string>
     <string name="vault_recover_desc">Saisissez votre clé de récupération et choisissez un nouveau mot de passe principal. Une connexion à votre serveur est nécessaire.</string>
     <string name="vault_recover_button">Récupérer</string>
+    <plurals name="sync_rollbacks">
+        <item quantity="one">⚠ Le serveur a renvoyé %1$d fichier dans une version antérieure ; il n’a pas été appliqué.</item>
+        <item quantity="many">⚠ Le serveur a renvoyé %1$d fichiers dans une version antérieure ; ils n’ont pas été appliqués.</item>
+        <item quantity="other">⚠ Le serveur a renvoyé %1$d fichiers dans une version antérieure ; ils n’ont pas été appliqués.</item>
+    </plurals>
 </resources>

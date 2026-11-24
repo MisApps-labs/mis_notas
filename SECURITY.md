@@ -68,6 +68,6 @@ Ajustes → Sincronización → Cifrado se puede pasar a **v3** (ver [docs/SYNC_
 ## Limitaciones conocidas
 
 - En el formato v2 no se puede cambiar la contraseña maestra ni rotar la clave (sí en v3).
-- No hay protección contra *rollback*: un servidor malicioso podría servir una versión anterior, válida, de una nota.
+- En v2 no hay protección contra *rollback*: un servidor malicioso podría servir una versión anterior, válida, de una nota. En v3 cada fichero lleva un contador `rev` y un `manifest.json` cifrado guarda el último conocido: una versión anterior se detecta, no se aplica y se avisa. Sigue sin detectarse un ataque de bifurcación (enseñar a cada dispositivo una historia distinta).
 - En v2 las lápidas de borrado (`"deleted": true`) no van cifradas: revelan el identificador y la fecha de borrado de una nota, pero no su contenido. En v3 van cifradas; las lápidas creadas antes de actualizar siguen como estaban.
 - Los adjuntos no llevan relleno: su tamaño aproximado sigue siendo visible.
