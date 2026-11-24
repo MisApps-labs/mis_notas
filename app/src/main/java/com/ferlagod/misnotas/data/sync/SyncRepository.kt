@@ -16,6 +16,8 @@ import com.ferlagod.misnotas.data.backup.BackupManager
 import com.ferlagod.misnotas.data.local.AppDatabase
 import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
+import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
+import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
 import com.ferlagod.misnotas.data.local.model.NoteContentParser
 import com.ferlagod.misnotas.data.local.model.SyncStatus
@@ -85,6 +87,7 @@ class SyncRepository private constructor(context: Context) {
     private val noteDao = database.noteDao()
     private val attachmentDao = database.attachmentDao()
     private val tombstoneDao = database.remoteTombstoneDao()
+    private val historyDao = database.noteHistoryDao()
     private val attachmentStore = AttachmentStore(appContext)
 
     val authPreferences = AuthPreferences.getInstance(appContext)
@@ -214,6 +217,7 @@ class SyncRepository private constructor(context: Context) {
                         folderDao.resetSyncMetadata()
                         attachmentDao.markAllPendingUpload()
                         tombstoneDao.clear()
+                        historyDao.clearBases()
                     }
                     authPreferences.saveCredentials(credentials)
                     authPreferences.saveDerivedKey(key)
@@ -277,6 +281,7 @@ class SyncRepository private constructor(context: Context) {
                 folderDao.resetSyncMetadata()
                 attachmentDao.markAllPendingUpload()
                 tombstoneDao.clear()
+                historyDao.clearBases()
             }
         }
 
@@ -294,6 +299,7 @@ class SyncRepository private constructor(context: Context) {
         pushNotes(client, key, remote)
 
         cleanupOrphanAttachments(client, remote)
+        historyDao.deleteOrphanBases()
         tombstoneDao.getAll().filter { it.fileName !in remote }.forEach { tombstoneDao.delete(it.fileName) }
     }
 
@@ -398,7 +404,10 @@ class SyncRepository private constructor(context: Context) {
                     )
                     return@withTransaction
                 }
-                val action = SyncMerger.resolveNote(current, record, meta.etag, { UUID.randomUUID().toString() }, conflictSuffix, untitled)
+                val base = historyDao.getBase(id)
+                val action = SyncMerger.resolveNote(current, record, meta.etag, { UUID.randomUUID().toString() }, conflictSuffix, untitled, base)
+                // Lo que hay ahora en el servidor es la nueva versión común para futuras fusiones.
+                if (record is RemoteRecord.Live) historyDao.upsertBase(NoteSyncBaseEntity(id, record.entity.title, record.entity.content))
                 if (current != null && !current.isDeleted && (action is MergeAction.DeleteLocal || action is MergeAction.TrashLocal)) {
                     pendingRemovals += PendingRemoval.Tombstone(id, record, meta.etag)
                 } else {
@@ -466,7 +475,19 @@ class SyncRepository private constructor(context: Context) {
 
     private suspend fun applyNoteAction(id: String, action: MergeAction<NoteEntity>) {
         when (action) {
-            is MergeAction.SaveRemote -> noteDao.upsertNote(action.entity)
+            is MergeAction.SaveRemote -> {
+                // El texto local que se va a sustituir queda en el historial.
+                noteDao.getNoteById(id)?.let { current ->
+                    if (current.title != action.entity.title || current.content != action.entity.content) {
+                        snapshot(current, NoteRevisionEntity.Reason.BEFORE_SYNC)
+                    }
+                }
+                noteDao.upsertNote(action.entity)
+            }
+            is MergeAction.Merged -> {
+                noteDao.getNoteById(id)?.let { snapshot(it, NoteRevisionEntity.Reason.BEFORE_MERGE) }
+                noteDao.upsertNote(action.entity)
+            }
             is MergeAction.KeepLocal -> noteDao.setRemoteEtag(id, action.etag)
             is MergeAction.Conflict -> {
                 noteDao.upsertNote(action.main)
@@ -563,6 +584,7 @@ class SyncRepository private constructor(context: Context) {
         for (note in noteDao.getNotesBySyncStatus(SyncStatus.PENDING_UPLOAD)) {
             val name = noteFile(note.id)
             val etag = putGuarded(client, name, RemoteCodec.encodeNote(note, key), note.remoteEtag) ?: continue
+            historyDao.upsertBase(NoteSyncBaseEntity(note.id, note.title, note.content))
             if (noteDao.markSynced(note.id, note.updatedAt, etag.value) == 0) {
                 // El usuario editó la nota mientras se subía: sigue pendiente, pero con el ETag nuevo.
                 noteDao.setRemoteEtag(note.id, etag.value)
@@ -581,6 +603,11 @@ class SyncRepository private constructor(context: Context) {
             tombstoneDao.upsert(RemoteTombstoneEntity(name, etag.value))
             noteDao.deletePermanently(note.id)
         }
+    }
+
+    private suspend fun snapshot(note: NoteEntity, reason: NoteRevisionEntity.Reason) {
+        if (note.title.isBlank() && note.content.isBlank()) return
+        historyDao.insertRevision(NoteRevisionEntity(noteId = note.id, title = note.title, content = note.content, reason = reason.key))
     }
 
     private class Etag(val value: String?)

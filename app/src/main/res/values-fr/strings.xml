@@ -376,4 +376,12 @@
     <string name="diag_existing_vault">Il y a déjà des notes chiffrées ici : utilisez le même mot de passe principal que sur vos autres appareils.</string>
     <string name="diag_empty_folder">Le dossier est prêt ; un nouveau coffre chiffré sera créé.</string>
     <string name="tags">Étiquettes</string>
+    <string name="history_title">Historique des versions</string>
+    <string name="history_empty">Aucune version antérieure pour l’instant. Elles sont enregistrées pendant la modification, avant que la synchronisation remplace ou fusionne le texte et avant une restauration.</string>
+    <string name="history_desc">Enregistrées uniquement sur cet appareil (jusqu’à 50 par note, pendant 180 jours).</string>
+    <string name="history_restore">Restaurer cette version</string>
+    <string name="history_reason_edit">Modification</string>
+    <string name="history_reason_sync">Avant synchro</string>
+    <string name="history_reason_merge">Avant fusion</string>
+    <string name="history_reason_restore">Avant restauration</string>
 </resources>

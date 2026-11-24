@@ -697,6 +697,9 @@ private fun EditorHost(
         onDuplicateNote = viewModel::duplicateNote,
         onOpenNote = onOpenNote,
         onAddImage = viewModel::addImageAttachment,
+        observeRevisions = viewModel::observeRevisions,
+        onRestoreRevision = viewModel::prepareRestore,
+        onDeleteRevision = viewModel::deleteRevision,
         // Si la nota pasa a la papelera en otro dispositivo lo decide el editor (ver NoteEditorScreen).
         onTrashedElsewhere = viewModel::onNoteTrashedElsewhere,
         showReadModeHint = settings.showHint(Hints.READ_MODE),

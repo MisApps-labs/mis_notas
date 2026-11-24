@@ -15,10 +15,13 @@ import com.ferlagod.misnotas.data.local.converter.Converters
 import com.ferlagod.misnotas.data.local.dao.AttachmentDao
 import com.ferlagod.misnotas.data.local.dao.FolderDao
 import com.ferlagod.misnotas.data.local.dao.NoteDao
+import com.ferlagod.misnotas.data.local.dao.NoteHistoryDao
 import com.ferlagod.misnotas.data.local.dao.RemoteTombstoneDao
 import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
+import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
+import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
 
 /**
@@ -29,9 +32,11 @@ import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
         FolderEntity::class,
         NoteEntity::class,
         AttachmentEntity::class,
-        RemoteTombstoneEntity::class
+        RemoteTombstoneEntity::class,
+        NoteRevisionEntity::class,
+        NoteSyncBaseEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -41,6 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun attachmentDao(): AttachmentDao
     abstract fun remoteTombstoneDao(): RemoteTombstoneDao
+    abstract fun noteHistoryDao(): NoteHistoryDao
 
     companion object {
         private const val DATABASE_NAME = "misnotas.db"
@@ -117,13 +123,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v2 -> v3: historial de versiones y bases de la fusión a tres bandas. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `note_revisions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`noteId` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `reason` TEXT NOT NULL)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_revisions_noteId_createdAt` ON `note_revisions` (`noteId`, `createdAt`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `note_sync_base` (`noteId` TEXT NOT NULL, `title` TEXT NOT NULL, " +
+                        "`content` TEXT NOT NULL, PRIMARY KEY(`noteId`))"
+                )
+                // Las notas ya sincronizadas parten de su texto actual como base.
+                db.execSQL("INSERT INTO `note_sync_base` (noteId, title, content) SELECT id, title, content FROM notes WHERE syncStatus = 'SYNCED'")
+            }
+        }
+
         private fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
         }
     }

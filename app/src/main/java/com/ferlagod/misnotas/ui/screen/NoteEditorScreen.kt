@@ -57,6 +57,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileCopy
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FormatBold
 import androidx.compose.material.icons.rounded.FormatItalic
@@ -93,6 +94,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -253,6 +255,11 @@ fun NoteEditorScreen(
     onDuplicateNote: suspend (String) -> String?,
     onOpenNote: (String) -> Unit,
     onAddImage: suspend (Uri) -> String,
+    /** Historial de versiones de la nota y cómo restaurar una. */
+    observeRevisions: (String) -> kotlinx.coroutines.flow.Flow<List<com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity>> =
+        { kotlinx.coroutines.flow.flowOf(emptyList()) },
+    onRestoreRevision: (noteId: String, revisionId: Long, onReady: (com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity) -> Unit) -> Unit = { _, _, _ -> },
+    onDeleteRevision: (Long) -> Unit = {},
     /**
      * Otro dispositivo mandó la nota a la papelera mientras estaba abierta. Con [keepEdits]
      * el editor tenía cambios y la nota se restaura para no perderlos; si no, el editor se cierra.
@@ -300,6 +307,7 @@ fun NoteEditorScreen(
     var showColorPicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
     var viewerImage by remember { mutableStateOf<Any?>(null) }
     /** Imagen cuyo tamaño se está cambiando (tramo que ocupa en el Markdown). */
     var imageResize by remember { mutableStateOf<ImageResizeState?>(null) }
@@ -708,6 +716,15 @@ fun NoteEditorScreen(
                                         }
                                     }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.history_title)) },
+                                    leadingIcon = { Icon(Icons.Rounded.History, contentDescription = null) },
+                                    onClick = {
+                                        showMenu = false
+                                        persistChanges(sync = false)
+                                        showHistory = true
+                                    }
+                                )
                                 HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.move_to_trash), color = AccentRed) },
@@ -943,6 +960,25 @@ fun NoteEditorScreen(
             confirmButton = {
                 TextButton(onClick = { showColorPicker = false }) { Text(stringResource(R.string.close)) }
             }
+        )
+    }
+
+    if (showHistory) {
+        val revisions by remember(stableId) { observeRevisions(stableId) }.collectAsState(initial = emptyList())
+        HistoryDialog(
+            revisions = revisions,
+            onRestore = { rev ->
+                onRestoreRevision(stableId, rev.id) { restored ->
+                    showHistory = false
+                    val newValue = TextFieldValue(restored.content, TextRange(restored.content.length))
+                    history.record(textValue, newValue, force = true)
+                    title = restored.title
+                    textValue = newValue
+                    persistChanges(sync = true)
+                }
+            },
+            onDelete = { onDeleteRevision(it.id) },
+            onDismiss = { showHistory = false }
         )
     }
 

@@ -56,7 +56,8 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - **Móviles plegables y tablets**: en pantallas anchas la lista y la nota se ven lado a lado; al plegar el móvil la nota sigue abierta sin perder nada.
 - **Sincronización con Nextcloud, ownCloud o cualquier WebDAV** automática: al abrir la app, al editar y cada ~30 minutos en segundo plano. Inicio de sesión de Nextcloud en el navegador, certificados autofirmados y prueba de conexión con diagnóstico.
 - **Cifrado de extremo a extremo** AES-256-GCM con una contraseña maestra que nunca sale del dispositivo.
-- **Sin conflictos silenciosos**: si una nota se edita a la vez en dos dispositivos, se conservan ambas versiones.
+- **Sin conflictos silenciosos**: si una nota se edita a la vez en dos dispositivos y los cambios están en líneas distintas, se **fusionan solos**; si chocan en las mismas líneas, se conservan ambas versiones.
+- **Historial de versiones** de cada nota (en el dispositivo): se guarda al editar, antes de que la sincronización sustituya o fusione el texto y antes de restaurar, y se restaura con un toque.
 - Diseño de la familia **Mis Apps** (compartido con Mis Podcast): tipografías Outfit e Inter, verde del logo como color principal, tema claro, oscuro o del sistema con opción de negro puro AMOLED, e icono temático en Android 13+.
 - **Disponible en español, inglés, francés, alemán e italiano**: se elige en Ajustes (o "Idioma del sistema"). En Android 13+ también desde los ajustes de idioma del sistema.
 - Sin anuncios, sin rastreadores, sin servicios de Google.
@@ -105,7 +106,7 @@ Detalles técnicos en [SECURITY.md](SECURITY.md) y en el [formato de sincronizac
 
 - Cada nota y carpeta es un fichero JSON cifrado en `MisNotas/` de tu Nextcloud (`note_<id>.json`, `folder_<id>.json`); las imágenes son `att_<id>.bin`.
 - La app usa los ETag de WebDAV para descargar solo lo que ha cambiado y `If-Match` al subir, para no sobrescribir nunca un cambio que no ha visto.
-- **Conflictos**: si la misma nota cambió en dos sitios, se queda la versión más reciente y la otra se guarda como una nota nueva con el título "… (conflicto)".
+- **Conflictos**: si la misma nota cambió en dos sitios, se fusionan los cambios línea a línea con la última versión común (como `git merge`). Solo si los dos cambiaron las mismas líneas se queda la versión más reciente y la otra se guarda como una nota nueva con el título "… (conflicto)". La versión local anterior queda siempre en el historial.
 - **Borrados**: la papelera se sincroniza entre dispositivos. Al vaciarla, la app deja en el servidor una "lápida" para que el resto de dispositivos también la borren.
 - Al eliminar una carpeta, sus notas pasan a "Todas las notas" y sus subcarpetas suben un nivel.
 - **Freno ante borrados masivos**: si en una sincronización el servidor quiere borrar o mandar a la papelera de golpe muchas notas (5 o más y al menos una cuarta parte de las que tienes, o 50 o más), la app no lo aplica: conserva las notas, las vuelve a subir y lo indica en Ajustes. Suele pasar si la carpeta del servidor se ha vaciado o es otra.

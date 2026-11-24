@@ -376,4 +376,12 @@
     <string name="diag_existing_vault">Qui ci sono già note cifrate: usa la stessa password principale degli altri dispositivi.</string>
     <string name="diag_empty_folder">La cartella è pronta; verrà creato un nuovo archivio cifrato.</string>
     <string name="tags">Etichette</string>
+    <string name="history_title">Cronologia versioni</string>
+    <string name="history_empty">Ancora nessuna versione precedente. Vengono salvate durante la modifica, prima che la sincronizzazione sostituisca o unisca il testo e prima di un ripristino.</string>
+    <string name="history_desc">Salvate solo su questo dispositivo (fino a 50 per nota, per 180 giorni).</string>
+    <string name="history_restore">Ripristina questa versione</string>
+    <string name="history_reason_edit">Modifica</string>
+    <string name="history_reason_sync">Prima della sincronizzazione</string>
+    <string name="history_reason_merge">Prima dell’unione</string>
+    <string name="history_reason_restore">Prima del ripristino</string>
 </resources>

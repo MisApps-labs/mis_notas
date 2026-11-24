@@ -362,4 +362,12 @@
     <string name="diag_existing_vault">Hier liegen bereits verschlüsselte Notizen: Verwende dasselbe Master-Passwort wie auf deinen anderen Geräten.</string>
     <string name="diag_empty_folder">Der Ordner ist bereit; ein neuer verschlüsselter Tresor wird angelegt.</string>
     <string name="tags">Schlagwörter</string>
+    <string name="history_title">Versionsverlauf</string>
+    <string name="history_empty">Noch keine früheren Versionen. Sie werden beim Bearbeiten gespeichert, bevor die Synchronisierung den Text ersetzt oder zusammenführt, und vor dem Wiederherstellen.</string>
+    <string name="history_desc">Nur auf diesem Gerät gespeichert (bis zu 50 pro Notiz, 180 Tage lang).</string>
+    <string name="history_restore">Diese Version wiederherstellen</string>
+    <string name="history_reason_edit">Bearbeitung</string>
+    <string name="history_reason_sync">Vor Synchronisierung</string>
+    <string name="history_reason_merge">Vor Zusammenführung</string>
+    <string name="history_reason_restore">Vor Wiederherstellung</string>
 </resources>

@@ -376,4 +376,12 @@
     <string name="diag_existing_vault">Aquí ya hay notas cifradas: usa la misma contraseña maestra que en tus otros dispositivos.</string>
     <string name="diag_empty_folder">La carpeta está lista; se creará una bóveda cifrada nueva.</string>
     <string name="tags">Etiquetas</string>
+    <string name="history_title">Historial de versiones</string>
+    <string name="history_empty">Aún no hay versiones anteriores. Se guardan al editar, antes de que la sincronización sustituya o fusione el texto y antes de restaurar.</string>
+    <string name="history_desc">Se guardan solo en este dispositivo (hasta 50 por nota, durante 180 días).</string>
+    <string name="history_restore">Restaurar esta versión</string>
+    <string name="history_reason_edit">Edición</string>
+    <string name="history_reason_sync">Antes de sincronizar</string>
+    <string name="history_reason_merge">Antes de fusionar</string>
+    <string name="history_reason_restore">Antes de restaurar</string>
 </resources>

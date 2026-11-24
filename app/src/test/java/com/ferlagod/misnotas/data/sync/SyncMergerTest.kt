@@ -219,4 +219,38 @@ class SyncMergerTest {
     fun massRemoval_absoluteLimitAlwaysBlocks() {
         assertTrue(SyncMerger.isMassRemoval(removed = 50, live = 10_000))
     }
+
+    // --- Fusión a tres bandas ---
+
+    @Test
+    fun concurrentEditsInDifferentLinesAreMerged() {
+        val base = com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity("n1", "Lista", "uno\ndos\ntres")
+        val local = note(title = "Lista", content = "uno local\ndos\ntres", updatedAt = 200, status = SyncStatus.PENDING_UPLOAD, etag = "e1")
+        val remote = note(title = "Lista", content = "uno\ndos\ntres remoto", updatedAt = 300)
+        val action = SyncMerger.resolveNote(local, live(remote), "e2", { "copy" }, base = base)
+        assertTrue(action is MergeAction.Merged)
+        val merged = (action as MergeAction.Merged).entity
+        assertEquals("uno local\ndos\ntres remoto", merged.content)
+        assertEquals("e2", merged.remoteEtag)
+        assertEquals(SyncStatus.PENDING_UPLOAD, merged.syncStatus)
+    }
+
+    @Test
+    fun clashingEditsStillKeepBothVersions() {
+        val base = com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity("n1", "Lista", "uno")
+        val local = note(title = "Lista", content = "uno A", updatedAt = 200, status = SyncStatus.PENDING_UPLOAD, etag = "e1")
+        val remote = note(title = "Lista", content = "uno B", updatedAt = 300)
+        assertTrue(SyncMerger.resolveNote(local, live(remote), "e2", { "copy" }, base = base) is MergeAction.Conflict)
+    }
+
+    @Test
+    fun sameTextDifferentMetadataNeedsNoCopy() {
+        val local = note(title = "T", content = "C", updatedAt = 200, status = SyncStatus.PENDING_UPLOAD, etag = "e1")
+        val remote = note(title = "T", content = "C", updatedAt = 300).copy(isPinned = true, color = "BLUE")
+        val action = SyncMerger.resolveNote(local, live(remote), "e2", { "copy" })
+        assertTrue(action is MergeAction.Merged)
+        val merged = (action as MergeAction.Merged).entity
+        assertTrue(merged.isPinned)
+        assertEquals("BLUE", merged.color)
+    }
 }

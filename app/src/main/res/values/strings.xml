@@ -363,4 +363,12 @@
     <string name="diag_existing_vault">There are already encrypted notes here: use the same master password as on your other devices.</string>
     <string name="diag_empty_folder">The folder is ready; a new encrypted vault will be created.</string>
     <string name="tags">Tags</string>
+    <string name="history_title">Version history</string>
+    <string name="history_empty">No earlier versions yet. They’re saved as you edit, before sync replaces or merges the text, and before restoring.</string>
+    <string name="history_desc">Saved only on this device (up to 50 per note, for 180 days).</string>
+    <string name="history_restore">Restore this version</string>
+    <string name="history_reason_edit">Edit</string>
+    <string name="history_reason_sync">Before sync</string>
+    <string name="history_reason_merge">Before merging</string>
+    <string name="history_reason_restore">Before restoring</string>
 </resources>

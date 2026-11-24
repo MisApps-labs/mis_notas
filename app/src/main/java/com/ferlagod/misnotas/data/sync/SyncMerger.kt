@@ -6,7 +6,9 @@ package com.ferlagod.misnotas.data.sync
 
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
+import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
 import com.ferlagod.misnotas.data.local.model.SyncStatus
+import com.ferlagod.misnotas.util.TextMerge
 
 /** Acción a aplicar en local tras comparar una entidad local con su versión remota. */
 sealed interface MergeAction<out T> {
@@ -34,6 +36,12 @@ sealed interface MergeAction<out T> {
      */
     data class Reupload(val etag: String?) : MergeAction<Nothing>
 
+    /**
+     * La nota cambió a la vez en local y en remoto, pero los cambios no se pisan: se guarda
+     * [entity], que combina ambos (fusión a tres bandas con la última versión común), y se sube.
+     */
+    data class Merged(val entity: NoteEntity) : MergeAction<NoteEntity>
+
     /** Conflicto en una nota: se guarda [main] y se crea [copy] como nota nueva. */
     data class Conflict(val main: NoteEntity, val copy: NoteEntity) : MergeAction<NoteEntity>
 }
@@ -53,8 +61,9 @@ enum class MissingRemoteAction {
 /**
  * Reglas de fusión de la sincronización. Son funciones puras para poder probarlas.
  *
- * Principio: nunca perder texto. Si una nota cambió a la vez en local y en remoto con
- * contenido distinto, gana la más reciente y la otra se conserva como "(conflicto)".
+ * Principio: nunca perder texto. Si una nota cambió a la vez en local y en remoto, se intenta
+ * combinar ambos cambios con la última versión común ([NoteSyncBaseEntity]); si chocan en las
+ * mismas líneas, gana la más reciente y la otra se conserva como "(conflicto)".
  */
 object SyncMerger {
 
@@ -67,7 +76,8 @@ object SyncMerger {
         etag: String?,
         newId: () -> String,
         conflictSuffix: String = CONFLICT_SUFFIX,
-        untitled: String = UNTITLED
+        untitled: String = UNTITLED,
+        base: NoteSyncBaseEntity? = null
     ): MergeAction<NoteEntity> {
         fun copyOf(note: NoteEntity) = asConflictCopy(note, newId(), conflictSuffix, untitled)
         when (remote) {
@@ -105,6 +115,9 @@ object SyncMerger {
 
                     SyncStatus.PENDING_UPLOAD -> when {
                         sameNoteContent(local, remoteNote) -> MergeAction.KeepLocal(etag)
+                        else -> mergeNotes(local, remoteNote, base)?.let {
+                            MergeAction.Merged(it.copy(remoteEtag = etag, syncStatus = SyncStatus.PENDING_UPLOAD))
+                        } ?: when {
                         remoteNote.updatedAt > local.updatedAt -> MergeAction.Conflict(
                             main = remoteNote,
                             copy = copyOf(local)
@@ -113,10 +126,40 @@ object SyncMerger {
                             main = local.copy(remoteEtag = etag),
                             copy = copyOf(remoteNote)
                         )
+                        }
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Combina [local] y [remote]. Si el texto coincide y solo difieren carpeta, color, fijado o
+     * papelera, se toman los de la versión más reciente. Si el texto difiere hace falta la base:
+     * el título se combina si solo cambió en un lado y el contenido línea a línea ([TextMerge]).
+     * Devuelve null si los cambios chocan.
+     */
+    fun mergeNotes(local: NoteEntity, remote: NoteEntity, base: NoteSyncBaseEntity?): NoteEntity? {
+        val newer = if (remote.updatedAt > local.updatedAt) remote else local
+        val title: String
+        val content: String
+        if (local.title == remote.title && local.content == remote.content) {
+            title = local.title
+            content = local.content
+        } else {
+            if (base == null) return null
+            title = TextMerge.mergeLine(base.title, local.title, remote.title) ?: return null
+            content = TextMerge.merge3(base.content, local.content, remote.content) ?: return null
+        }
+        return local.copy(
+            title = title,
+            content = content,
+            folderId = newer.folderId,
+            color = newer.color,
+            isPinned = newer.isPinned,
+            isDeleted = newer.isDeleted,
+            updatedAt = maxOf(local.updatedAt, remote.updatedAt)
+        )
     }
 
     /**

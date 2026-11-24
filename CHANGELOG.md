@@ -12,6 +12,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - HTTP sin cifrar permitido solo en la red local, con aviso.
 - Etiquetas con `#hashtags` dentro del texto (con subetiquetas `#a/b`): sección en el inicio, filtro, chips en las tarjetas y resaltado en el lector y el editor.
 - Búsqueda con operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
+- Historial de versiones de cada nota, guardado en el dispositivo, con vista previa y restauración.
+- Fusión a tres bandas al sincronizar: los cambios simultáneos en líneas distintas se combinan sin crear copias «(conflicto)»; si solo difieren carpeta, color o fijado, gana lo más reciente.
 - Copia de seguridad automática en ZIP al conectar una cuenta de Nextcloud, antes de la primera sincronización (en `Descargas/MisNotas`; en Android 8-9, en la carpeta de la app).
 - Freno ante borrados masivos: si el servidor quiere borrar o mandar a la papelera de golpe muchas notas visibles, se conservan, se vuelven a subir y se avisa en Ajustes.
 

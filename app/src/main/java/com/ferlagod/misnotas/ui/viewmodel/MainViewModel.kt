@@ -21,6 +21,7 @@ import com.ferlagod.misnotas.data.local.AppDatabase
 import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
 import com.ferlagod.misnotas.data.local.entity.NoteEntity
+import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
 import com.ferlagod.misnotas.data.local.model.FolderTree
 import com.ferlagod.misnotas.data.local.model.SyncStatus
 import com.ferlagod.misnotas.data.local.pref.AppSettings
@@ -114,6 +115,12 @@ sealed interface DiagnosticsState {
     data class Done(val rootUrl: String, val report: ConnectionDiagnostics.Report) : DiagnosticsState
 }
 
+/** Intervalo mínimo entre dos versiones guardadas mientras se edita. */
+private const val REVISION_INTERVAL_MS = 10 * 60_000L
+/** Versiones que se conservan por nota y antigüedad máxima. */
+private const val REVISIONS_PER_NOTE = 50
+private const val REVISION_MAX_AGE_DAYS = 180L
+
 /** Id fijo de la nota de bienvenida: igual en todos los dispositivos para que no se duplique. */
 private const val WELCOME_NOTE_ID = "misnotas-welcome"
 
@@ -126,6 +133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val folderDao = database.folderDao()
     private val noteDao = database.noteDao()
     private val attachmentDao = database.attachmentDao()
+    private val historyDao = database.noteHistoryDao()
     private val attachmentStore = AttachmentStore(application)
     private val backupManager = BackupManager(application)
 
@@ -277,6 +285,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             syncRepository.migrateLegacyImages()
             purgeOldTrash()
+            pruneHistory()
         }
         if (!settings.value.welcomeSeeded) viewModelScope.launch { seedWelcomeNote() }
         viewModelScope.launch {
@@ -345,6 +354,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoPurgeTrash(enabled: Boolean) {
         appSettings.setAutoPurgeTrash(enabled)
         if (enabled) viewModelScope.launch { purgeOldTrash() }
+    }
+
+    // ==========================================
+    // Historial de versiones
+    // ==========================================
+
+    fun observeRevisions(noteId: String): Flow<List<NoteRevisionEntity>> = historyDao.revisionsFlow(noteId)
+
+    /**
+     * Guarda la versión anterior de la nota antes de un cambio de texto. Como mucho una cada
+     * [REVISION_INTERVAL_MS] mientras se escribe, para no llenar el historial con cada letra.
+     */
+    private suspend fun snapshotForEdit(existing: NoteEntity) {
+        if (existing.title.isBlank() && existing.content.isBlank()) return
+        val last = historyDao.latestRevision(existing.id)
+        if (last != null && System.currentTimeMillis() - last.createdAt < REVISION_INTERVAL_MS) return
+        if (last != null && last.title == existing.title && last.content == existing.content) return
+        historyDao.insertRevision(NoteRevisionEntity(noteId = existing.id, title = existing.title, content = existing.content))
+    }
+
+    /**
+     * Antes de restaurar una versión desde el editor: guarda la versión actual en el historial
+     * (para poder deshacer) y avisa con la versión elegida. El editor aplica el texto y lo guarda
+     * como cualquier otra edición.
+     */
+    fun prepareRestore(noteId: String, revisionId: Long, onReady: (NoteRevisionEntity) -> Unit) {
+        viewModelScope.launch {
+            val revision = noteWriteMutex.withLock {
+                val revision = historyDao.getRevision(revisionId) ?: return@withLock null
+                val current = noteDao.getNoteById(noteId)
+                if (current != null && (current.title != revision.title || current.content != revision.content) &&
+                    (current.title.isNotBlank() || current.content.isNotBlank())
+                ) {
+                    historyDao.insertRevision(
+                        NoteRevisionEntity(noteId = noteId, title = current.title, content = current.content, reason = NoteRevisionEntity.Reason.BEFORE_RESTORE.key)
+                    )
+                }
+                revision
+            } ?: return@launch
+            onReady(revision)
+        }
+    }
+
+    fun deleteRevision(revisionId: Long) {
+        viewModelScope.launch { historyDao.deleteRevision(revisionId) }
+    }
+
+    private suspend fun pruneHistory() {
+        historyDao.deleteOrphanRevisions()
+        historyDao.prune(REVISIONS_PER_NOTE, System.currentTimeMillis() - TimeUnit.DAYS.toMillis(REVISION_MAX_AGE_DAYS))
     }
 
     /** Vacía de la papelera las notas que llevan más de 30 días en ella (si está activado). */
@@ -779,6 +838,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) {
             if (base != null) editorBases[id] = editorMeta(base.title, base.content)
             return
+        }
+
+        if (existing != null && (existing.title != cleanTitle || existing.content != cleanContent)) {
+            snapshotForEdit(existing)
         }
 
         val entity = (existing ?: NoteEntity(id = id, title = "", content = "")).copy(
