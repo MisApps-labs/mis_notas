@@ -438,4 +438,8 @@
         <item quantity="one">⚠ The server returned %1$d file in an older version; it wasn’t applied.</item>
         <item quantity="other">⚠ The server returned %1$d files in an older version; they weren’t applied.</item>
     </plurals>
+    <string name="mode_encrypted">End-to-end encrypted</string>
+    <string name="mode_plain">Unencrypted (.md)</string>
+    <string name="mode_plain_desc">Each note is a readable Markdown file in the “Notes” folder, compatible with Nextcloud Notes, the Nextcloud web and Obsidian. Whoever runs the server can read them. Pinned, color and trash stay on this device. The desktop app and extension don’t use this mode.</string>
+    <string name="err_plain_vault_folder">That folder contains encrypted notes. Choose another folder for the unencrypted mode.</string>
 </resources>

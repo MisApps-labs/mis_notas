@@ -54,6 +54,8 @@ class AttachmentSyncTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        SyncRepository.resetForTesting()
+        context.deleteDatabase("misnotas.db")
         AuthPreferences.installForTesting(context.getSharedPreferences("test_auth", Context.MODE_PRIVATE))
         dav = FakeWebDav(root)
         server = MockWebServer().apply { dispatcher = dav; start() }

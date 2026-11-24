@@ -15,6 +15,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Etiquetas con `#hashtags` dentro del texto (con subetiquetas `#a/b`): sección en el inicio, filtro, chips en las tarjetas y resaltado en el lector y el editor.
 - Búsqueda con operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
 - Historial de versiones de cada nota, guardado en el dispositivo, con vista previa y restauración.
+- Modo sin cifrar compatible con Nextcloud Notes: notas como ficheros `.md` legibles en `Notes/`, carpetas como directorios, adjuntos en `.attachments/`; sincroniza ediciones, notas nuevas, renombrados (también los hechos en el servidor) y borrados, con fusión a tres bandas y papelera.
 - Herramienta de línea de comandos `tools/misnotas-decrypt` (Python): descifra la carpeta del servidor (v1, v2 y v3, con contraseña o clave de recuperación) y la exporta a Markdown sin la app.
 - Importar desde Google Keep (Takeout), Joplin (.jex), Evernote (.enex), Simplenote y Standard Notes (copia sin cifrar), con carpetas, tareas, adjuntos, fechas y etiquetas como #hashtags.
 - Enlaces entre notas `[[Título]]` / `[[Título|texto]]`, botón «Enlazar nota» en la barra de formato y sección «Enlazada desde».

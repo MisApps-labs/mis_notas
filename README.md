@@ -91,6 +91,12 @@ Funciona con **Nextcloud, ownCloud y cualquier servidor WebDAV** (Synology, Seaf
 
 Instala la app en el otro dispositivo y conéctalo con la **misma cuenta y la misma contraseña maestra**. Si la contraseña no coincide, la app te avisará y no subirá nada.
 
+### Modo sin cifrar (compatible con Nextcloud Notes)
+
+Si prefieres poder leer y editar tus notas desde la web de Nextcloud, la app **Nextcloud Notes**, Obsidian o cualquier editor, al conectar elige **Sin cifrar (.md)**. Cada nota es un fichero `Título.md` en la carpeta `Notes/` (la misma que usa Nextcloud Notes) y cada carpeta de la app es un directorio. Los adjuntos van en `.attachments/`. Los cambios hechos fuera de la app (editar, crear, renombrar o borrar ficheros) se sincronizan con las mismas protecciones: fusión de cambios, papelera y freno ante borrados masivos.
+
+Ten en cuenta que en este modo quien administre el servidor puede leer las notas, y que fijado, color y papelera solo se guardan en el dispositivo. La app de escritorio y la extensión usan siempre el modo cifrado.
+
 ### Cifrado v3 (opcional)
 
 En **Ajustes → Sincronización → Cifrado** puedes actualizar la bóveda a **v3**: Argon2id, **clave de recuperación**, **cambio de contraseña maestra**, **rotación de la clave**, ficheros con relleno y borrados cifrados. Hazlo cuando todos tus clientes lo admitan: las versiones que solo conocen v2 (también la app de escritorio y la extensión actuales) dejan de sincronizar con esa cuenta hasta que se actualicen, sin estropear nada.

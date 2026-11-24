@@ -437,4 +437,8 @@
         <item quantity="one">⚠ Der Server lieferte %1$d Datei in einer älteren Version; sie wurde nicht übernommen.</item>
         <item quantity="other">⚠ Der Server lieferte %1$d Dateien in einer älteren Version; sie wurden nicht übernommen.</item>
     </plurals>
+    <string name="mode_encrypted">Ende-zu-Ende-verschlüsselt</string>
+    <string name="mode_plain">Unverschlüsselt (.md)</string>
+    <string name="mode_plain_desc">Jede Notiz ist eine lesbare Markdown-Datei im Ordner „Notes“, kompatibel mit Nextcloud Notes, dem Nextcloud-Web und Obsidian. Wer den Server betreibt, kann sie lesen. Anheften, Farbe und Papierkorb bleiben auf diesem Gerät. Desktop-App und Erweiterung nutzen diesen Modus nicht.</string>
+    <string name="err_plain_vault_folder">Dieser Ordner enthält verschlüsselte Notizen. Wähle für den unverschlüsselten Modus einen anderen Ordner.</string>
 </resources>

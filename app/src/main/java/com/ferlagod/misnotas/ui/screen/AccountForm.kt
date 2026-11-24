@@ -88,13 +88,13 @@ import java.security.cert.X509Certificate
 class AccountActions(
     val startLogin: (serverUrl: String) -> Unit,
     val cancelLogin: () -> Unit,
-    val test: (kind: ServerKind, serverUrl: String, user: String, password: String) -> Unit,
+    val test: (kind: ServerKind, serverUrl: String, user: String, password: String, encrypted: Boolean) -> Unit,
     val dismissDiagnostics: () -> Unit,
     val trustCertificate: (X509Certificate) -> Unit,
     val importCertificate: (Uri) -> Unit,
     val removeCertificate: (sha256: String) -> Unit,
     val submit: (
-        kind: ServerKind, serverUrl: String, user: String, password: String, master: String,
+        kind: ServerKind, serverUrl: String, user: String, password: String, master: String, encrypted: Boolean,
         onSuccess: () -> Unit, onError: (String) -> Unit
     ) -> Unit
 )
@@ -130,6 +130,7 @@ fun AccountForm(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showCerts by rememberSaveable { mutableStateOf(false) }
+    var encrypted by rememberSaveable { mutableStateOf(initial?.encrypted ?: true) }
 
     fun clearMessages() {
         errorMessage = null
@@ -263,6 +264,21 @@ fun AccountForm(
 
         // --- Cifrado ---
         Spacer(Modifier.height(16.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            listOf(true, false).forEachIndexed { index, value ->
+                SegmentedButton(
+                    selected = encrypted == value,
+                    onClick = { encrypted = value; errorMessage = null },
+                    shape = SegmentedButtonDefaults.itemShape(index, 2)
+                ) {
+                    Text(stringResource(if (value) R.string.mode_encrypted else R.string.mode_plain), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        if (!encrypted) {
+            Hint(stringResource(R.string.mode_plain_desc), color = WarningColor)
+        } else {
+        Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Security, contentDescription = null, tint = primary, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
@@ -286,11 +302,13 @@ fun AccountForm(
             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
         )
 
+        }
+
         // --- Prueba de conexión ---
         Spacer(Modifier.height(14.dp))
         val canTest = serverUrl.isNotBlank() && serverUrl.trim() != "https://" && username.isNotBlank() && appPassword.isNotBlank()
         OutlinedButton(
-            onClick = { focusManager.clearFocus(); actions.test(kind, serverUrl, username, appPassword) },
+            onClick = { focusManager.clearFocus(); actions.test(kind, serverUrl, username, appPassword, encrypted) },
             enabled = canTest && diagnostics !is DiagnosticsState.Running,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -304,7 +322,7 @@ fun AccountForm(
             Text(stringResource(R.string.test_connection))
         }
         if (diagnostics is DiagnosticsState.Done) {
-            DiagnosticsReport(diagnostics.report, onTrust = { actions.trustCertificate(it); actions.test(kind, serverUrl, username, appPassword) })
+            DiagnosticsReport(diagnostics.report, onTrust = { actions.trustCertificate(it); actions.test(kind, serverUrl, username, appPassword, encrypted) })
         }
 
         // --- Certificados ---
@@ -349,13 +367,13 @@ fun AccountForm(
         }
 
         Spacer(Modifier.height(12.dp))
-        val ready = canTest && masterPassword.isNotBlank() && (kind == ServerKind.WEBDAV || manual || loggedIn)
+        val ready = canTest && (!encrypted || masterPassword.isNotBlank()) && (kind == ServerKind.WEBDAV || manual || loggedIn)
         Button(
             onClick = {
                 focusManager.clearFocus()
                 isLoading = true
                 errorMessage = null
-                actions.submit(kind, serverUrl.trim(), username.trim(), appPassword.trim(), masterPassword, {
+                actions.submit(kind, serverUrl.trim(), username.trim(), appPassword.trim(), masterPassword, encrypted, {
                     isLoading = false
                     masterPassword = ""
                     onConnected()

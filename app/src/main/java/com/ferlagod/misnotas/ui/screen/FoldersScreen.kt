@@ -148,6 +148,8 @@ fun FoldersScreen(
     onTriggerSync: () -> Unit,
     onLockApp: () -> Unit,
     onOpenSettings: () -> Unit,
+    /** Hay contraseña maestra que pedir (no en el modo sin cifrar). */
+    canLock: Boolean = true,
     /** Sin Nextcloud: aviso (cerrable) de que las notas solo están en este dispositivo. */
     showLocalModeHint: Boolean = false,
     onDismissLocalModeHint: () -> Unit = {}
@@ -246,7 +248,7 @@ fun FoldersScreen(
                                 syncState = syncState,
                                 onClick = { if (isConfigured) onTriggerSync() else onOpenSettings() }
                             )
-                            if (isConfigured) {
+                            if (isConfigured && canLock) {
                                 IconButton(onClick = onLockApp) {
                                     Icon(Icons.Rounded.Lock, contentDescription = stringResource(R.string.cd_lock), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }

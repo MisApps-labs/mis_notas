@@ -318,6 +318,7 @@ private fun AppNavigationHost(
     val safetyCopyTime by viewModel.safetyCopyTime.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val vaultState by viewModel.vaultState.collectAsStateWithLifecycle()
+    val isPlainMode by viewModel.isPlainMode.collectAsStateWithLifecycle()
     val vaultActions = remember(viewModel) {
         VaultActions(
             upgrade = viewModel::upgradeVault,
@@ -339,12 +340,12 @@ private fun AppNavigationHost(
             trustCertificate = viewModel::trustCertificate,
             importCertificate = viewModel::importCertificate,
             removeCertificate = viewModel::removeCertificate,
-            submit = { kind, url, user, pass, master, onSuccess, onError ->
+            submit = { kind, url, user, pass, master, encrypted, onSuccess, onError ->
                 viewModel.setupAndUnlock(kind, url, user, pass, master, onSuccess = {
                     viewModel.cancelNextcloudLogin()
                     viewModel.dismissDiagnostics()
                     onSuccess()
-                }, onError = onError)
+                }, onError = onError, encrypted = encrypted)
             }
         )
     }
@@ -451,6 +452,7 @@ private fun AppNavigationHost(
                 onDeleteFolder = viewModel::deleteFolder,
                 onTriggerSync = viewModel::triggerSync,
                 onLockApp = viewModel::lock,
+                canLock = !isPlainMode,
                 onOpenSettings = { navController.navigate(AppDestinations.SETTINGS) },
                 showLocalModeHint = settings.showHint(Hints.LOCAL_MODE),
                 onDismissLocalModeHint = { viewModel.dismissHint(Hints.LOCAL_MODE) }
@@ -472,7 +474,7 @@ private fun AppNavigationHost(
                 diagnostics = diagnostics,
                 trustedCerts = trustedCerts,
                 accountActions = accountActions,
-                vaultState = vaultState,
+                vaultState = vaultState.takeIf { !isPlainMode },
                 vaultActions = vaultActions,
                 onDisconnectNextcloud = viewModel::disconnectNextcloud,
                 onTriggerSync = viewModel::triggerSync,

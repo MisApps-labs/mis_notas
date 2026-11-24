@@ -502,9 +502,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         appPassword: String,
         masterPassword: String,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        encrypted: Boolean = true
     ) {
-        if (serverUrl.isBlank() || username.isBlank() || appPassword.isBlank() || masterPassword.isBlank()) {
+        if (serverUrl.isBlank() || username.isBlank() || appPassword.isBlank() || (encrypted && masterPassword.isBlank())) {
             onError(text(R.string.err_all_fields))
             return
         }
@@ -514,10 +515,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
-            val credentials = NextcloudCredentials(url, username.trim(), appPassword.trim(), kind)
+            val credentials = NextcloudCredentials(url, username.trim(), appPassword.trim(), kind, encrypted)
             syncRepository.connectAccount(credentials, masterPassword)
                 .onSuccess {
                     refreshSafetyCopy()
+                    refreshVaultState()
+                    _isPlainMode.value = !encrypted
                     _isConfigured.value = true
                     _isUnlocked.value = true
                     SyncWorker.schedule(getApplication())
@@ -591,10 +594,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val diagnostics: StateFlow<DiagnosticsState> = _diagnostics.asStateFlow()
     private var diagnosticsJob: Job? = null
 
-    fun testConnection(kind: ServerKind, serverUrl: String, username: String, appPassword: String) {
+    fun testConnection(kind: ServerKind, serverUrl: String, username: String, appPassword: String, encrypted: Boolean = true) {
         diagnosticsJob?.cancel()
         val url = resolveServerUrl(kind, serverUrl)
-        val root = authPreferences.buildWebDavRootUrl(NextcloudCredentials(url, username.trim(), appPassword.trim(), kind))
+        val root = authPreferences.buildWebDavRootUrl(NextcloudCredentials(url, username.trim(), appPassword.trim(), kind, encrypted))
         diagnosticsJob = viewModelScope.launch {
             _diagnostics.value = DiagnosticsState.Running
             val report = ConnectionDiagnostics(getApplication()).run(root, username.trim(), appPassword.trim())
@@ -739,14 +742,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Cuenta en modo sin cifrar (no hay contraseña maestra que pedir). */
+    private val _isPlainMode = MutableStateFlow(authPreferences.isPlainMode())
+    val isPlainMode: StateFlow<Boolean> = _isPlainMode.asStateFlow()
+
     fun lock() {
-        if (!_isConfigured.value) return
+        if (!_isConfigured.value || authPreferences.isPlainMode()) return
         authPreferences.clearDerivedKey()
         _isUnlocked.value = false
         NotesWidget.requestUpdate(getApplication())
     }
 
     fun disconnectNextcloud() {
+        _isPlainMode.value = false
         SyncWorker.cancel(getApplication())
         authPreferences.clearCredentials()
         authPreferences.clearDerivedKey()
@@ -757,6 +765,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
+        _isPlainMode.value = false
         SyncWorker.cancel(getApplication())
         authPreferences.clearAll()
         syncRepository.resetSyncState()

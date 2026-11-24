@@ -23,7 +23,9 @@ data class NextcloudCredentials(
     val serverUrl: String,
     val username: String,
     val appPassword: String,
-    val kind: ServerKind = ServerKind.NEXTCLOUD
+    val kind: ServerKind = ServerKind.NEXTCLOUD,
+    /** false = modo sin cifrar: notas como ficheros .md legibles (compatible con Nextcloud Notes). */
+    val encrypted: Boolean = true
 )
 
 /**
@@ -39,6 +41,9 @@ class AuthPreferences private constructor(private val prefs: SharedPreferences) 
         private const val KEY_USERNAME = "key_username"
         private const val KEY_APP_PASSWORD = "key_app_password"
         private const val KEY_SERVER_KIND = "key_server_kind"
+        private const val KEY_PLAIN = "key_plain_mode"
+        /** Carpeta del modo sin cifrar en Nextcloud: la misma que usa la app Nextcloud Notes. */
+        const val PLAIN_FOLDER_NAME = "Notes"
         private const val KEY_SALT_BASE64 = "key_salt_base64"
         private const val KEY_ITERATIONS = "key_kdf_iterations"
         private const val KEY_CHECK = "key_check"
@@ -114,6 +119,7 @@ class AuthPreferences private constructor(private val prefs: SharedPreferences) 
             putString(KEY_USERNAME, credentials.username.trim())
             putString(KEY_APP_PASSWORD, credentials.appPassword.trim())
             putString(KEY_SERVER_KIND, credentials.kind.key)
+            putBoolean(KEY_PLAIN, !credentials.encrypted)
         }
     }
 
@@ -121,7 +127,10 @@ class AuthPreferences private constructor(private val prefs: SharedPreferences) 
         val server = prefs.getString(KEY_SERVER_URL, null)?.takeIf { it.isNotBlank() } ?: return null
         val user = prefs.getString(KEY_USERNAME, null)?.takeIf { it.isNotBlank() } ?: return null
         val pass = prefs.getString(KEY_APP_PASSWORD, null)?.takeIf { it.isNotBlank() } ?: return null
-        return NextcloudCredentials(server, user, pass, ServerKind.fromKey(prefs.getString(KEY_SERVER_KIND, null)))
+        return NextcloudCredentials(
+            server, user, pass, ServerKind.fromKey(prefs.getString(KEY_SERVER_KIND, null)),
+            encrypted = !prefs.getBoolean(KEY_PLAIN, false)
+        )
     }
 
     fun hasCredentials(): Boolean = getCredentials() != null
@@ -132,6 +141,7 @@ class AuthPreferences private constructor(private val prefs: SharedPreferences) 
             remove(KEY_USERNAME)
             remove(KEY_APP_PASSWORD)
             remove(KEY_SERVER_KIND)
+            remove(KEY_PLAIN)
             remove(KEY_LAST_SYNC)
         }
     }
@@ -232,7 +242,10 @@ class AuthPreferences private constructor(private val prefs: SharedPreferences) 
         return getDerivedKey()?.let { Keyring.legacy(it) }
     }
 
-    fun isKeyUnlocked(): Boolean = getKeyring() != null
+    /** Cuenta en modo sin cifrar (no hay contraseña maestra ni nada que desbloquear). */
+    fun isPlainMode(): Boolean = hasCredentials() && prefs.getBoolean(KEY_PLAIN, false)
+
+    fun isKeyUnlocked(): Boolean = isPlainMode() || getKeyring() != null
 
     // ------------------------------------------------------------------
     // Estado
@@ -270,7 +283,7 @@ class AuthPreferences private constructor(private val prefs: SharedPreferences) 
         if (creds.kind == ServerKind.WEBDAV) return "$rawServer/"
         if (rawServer.contains("/remote.php/dav/files/")) return "$rawServer/"
         val user = java.net.URLEncoder.encode(creds.username, "UTF-8").replace("+", "%20")
-        return "$rawServer/remote.php/dav/files/$user/$DEFAULT_FOLDER_NAME/"
+        return "$rawServer/remote.php/dav/files/$user/${if (creds.encrypted) DEFAULT_FOLDER_NAME else PLAIN_FOLDER_NAME}/"
     }
 
     fun clearAll() {

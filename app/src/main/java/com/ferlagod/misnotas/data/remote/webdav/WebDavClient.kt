@@ -10,6 +10,7 @@ import com.ferlagod.misnotas.data.remote.http.HttpClientProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -198,9 +199,97 @@ class WebDavClient(
         if (xmlBody.isBlank()) emptyList() else parsePropfindResponse(xmlBody)
     }
 
-    private fun fileUrl(fileName: String): String = rootUrl + fileName.removePrefix("/")
+    /** URL de un fichero de la carpeta; [fileName] puede llevar subcarpetas (`Trabajo/Nota.md`). */
+    private fun fileUrl(fileName: String): String =
+        rootUrl + fileName.removePrefix("/").split('/').joinToString("/") { encodeSegment(it) }
 
-    private fun parsePropfindResponse(xml: String): List<RemoteFileMeta> {
+    private fun encodeSegment(segment: String): String =
+        java.net.URLEncoder.encode(segment, "UTF-8").replace("+", "%20")
+
+    /** Ruta (decodificada) de la carpeta raíz en el servidor, para calcular rutas relativas. */
+    private val rootPath: String by lazy {
+        URLDecoder.decode(rootUrl.toHttpUrl().encodedPath.replace("+", "%2B"), "UTF-8").trimEnd('/')
+    }
+
+    /**
+     * Lista todos los ficheros bajo la carpeta raíz, entrando en subcarpetas (PROPFIND Depth: 1
+     * en cada una, porque muchos servidores no admiten Depth: infinity). [RemoteFileMeta.name] es
+     * la ruta relativa (`Trabajo/Nota.md`). Se saltan las carpetas que empiezan por punto salvo
+     * [includeHidden].
+     */
+    suspend fun listRecursive(includeHidden: Set<String> = emptySet(), maxDepth: Int = 8): List<RemoteFileMeta> = withContext(Dispatchers.IO) {
+        val out = mutableListOf<RemoteFileMeta>()
+        val queue = ArrayDeque(listOf("" to 0))
+        while (queue.isNotEmpty()) {
+            val (dir, depth) = queue.removeFirst()
+            val url = if (dir.isEmpty()) rootUrl else fileUrl(dir) + "/"
+            val request = baseRequest(url)
+                .method("PROPFIND", PROPFIND_XML_BODY.toRequestBody(XML_MEDIA_TYPE))
+                .header("Depth", "1")
+                .build()
+            val xml = okHttpClient.newCall(request).execute().use { response ->
+                response.throwIfAuthError()
+                if (!response.isSuccessful) throw WebDavException(response.code, "Error al listar $dir (${response.code})")
+                response.body?.string().orEmpty()
+            }
+            for (meta in parsePropfindResponse(xml, includeDirectories = true)) {
+                // Algunos servidores devuelven el href como URL completa.
+                val path = meta.path.replace(Regex("^https?://[^/]+"), "")
+                val rel = path.removePrefix(rootPath).trim('/')
+                if (rel.isEmpty() || rel == dir) continue
+                if (meta.isDirectory) {
+                    val last = rel.substringAfterLast('/')
+                    if (depth + 1 < maxDepth && (!last.startsWith(".") || last in includeHidden)) queue += rel to depth + 1
+                } else {
+                    out += meta.copy(name = rel)
+                }
+            }
+        }
+        out
+    }
+
+    /** Crea [relativeDir] y las carpetas que falten por encima (MKCOL). */
+    suspend fun mkdirs(relativeDir: String): Unit = withContext(Dispatchers.IO) {
+        var current = ""
+        for (part in relativeDir.split('/').filter { it.isNotBlank() }) {
+            current = if (current.isEmpty()) part else "$current/$part"
+            val request = baseRequest(fileUrl(current) + "/").method("MKCOL", null).build()
+            okHttpClient.newCall(request).execute().use { response ->
+                response.throwIfAuthError()
+                if (!response.isSuccessful && response.code != 405) {
+                    throw WebDavException(response.code, "No se pudo crear $current (${response.code})")
+                }
+            }
+        }
+    }
+
+    /** Mueve o renombra un fichero sin sobrescribir el destino. Devuelve el ETag nuevo si lo hay. */
+    suspend fun move(from: String, to: String): Unit = withContext(Dispatchers.IO) {
+        val request = baseRequest(fileUrl(from))
+            .method("MOVE", null)
+            .header("Destination", fileUrl(to))
+            .header("Overwrite", "F")
+            .build()
+        okHttpClient.newCall(request).execute().use { response ->
+            response.throwIfAuthError()
+            if (response.code == 412) throw WebDavPreconditionFailedException(to)
+            if (!response.isSuccessful) throw WebDavException(response.code, "No se pudo mover $from (${response.code})")
+        }
+    }
+
+    /** Borra solo si el ETag coincide (no se borra un cambio que no se ha visto). */
+    suspend fun deleteIfMatch(fileName: String, etag: String?): Unit = withContext(Dispatchers.IO) {
+        val builder = baseRequest(fileUrl(fileName)).delete()
+        if (etag != null) builder.header("If-Match", "\"$etag\"")
+        okHttpClient.newCall(builder.build()).execute().use { response ->
+            response.throwIfAuthError()
+            if (response.code == 412) throw WebDavPreconditionFailedException(fileName)
+            if (response.isSuccessful || response.code == 404) return@use
+            throw WebDavException(response.code, "Error al eliminar $fileName (${response.code})")
+        }
+    }
+
+    private fun parsePropfindResponse(xml: String, includeDirectories: Boolean = false): List<RemoteFileMeta> {
         val result = mutableListOf<RemoteFileMeta>()
         val parser = Xml.newPullParser()
         parser.setInput(StringReader(xml))
@@ -226,14 +315,14 @@ class WebDavClient(
                     "getcontentlength" -> contentLength = parser.nextText().trim().toLongOrNull() ?: 0L
                     "collection" -> isCollection = true
                 }
-                XmlPullParser.END_TAG -> if (tag == "response" && href != null && !isCollection) {
+                XmlPullParser.END_TAG -> if (tag == "response" && href != null && (!isCollection || includeDirectories)) {
                     val path = URLDecoder.decode(href!!.replace("+", "%2B"), "UTF-8").trimEnd('/')
                     val name = path.substringAfterLast('/')
                     if (name.isNotBlank()) {
                         result += RemoteFileMeta(
                             name = name,
                             path = path,
-                            isDirectory = false,
+                            isDirectory = isCollection,
                             lastModified = parseHttpDate(lastModified),
                             contentLength = contentLength,
                             etag = normalizeEtag(etag)

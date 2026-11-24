@@ -47,3 +47,9 @@ Son configuraciones conocidas, no una lista de pruebas exhaustiva. Si tu servido
 - **HTTP sin cifrar**: solo se acepta para direcciones de la red local (`192.168.x.x`, `10.x.x.x`,
   `100.64.0.0/10` de Tailscale, `localhost`, `*.local`, `*.lan`…). Las notas siguen cifradas de extremo a
   extremo, pero la contraseña del servidor viaja en claro: mejor HTTPS siempre que puedas.
+
+## Modo sin cifrar
+
+Al conectar puedes elegir **Sin cifrar (.md)**: las notas se guardan como ficheros Markdown legibles
+(`Notes/Carpeta/Título.md`, adjuntos en `Notes/.attachments/`), compatibles con Nextcloud Notes y con
+cualquier editor. La app nunca usa en este modo una carpeta que ya tenga notas cifradas (`keyinfo.json`).

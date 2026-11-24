@@ -129,6 +129,13 @@ class SyncRepository private constructor(context: Context) {
                 INSTANCE ?: SyncRepository(context).also { INSTANCE = it }
             }
 
+        /** Pruebas: olvida la instancia (y la base de datos) para empezar de cero. */
+        @androidx.annotation.VisibleForTesting
+        fun resetForTesting() {
+            synchronized(this) { INSTANCE = null }
+            AppDatabase.resetForTesting()
+        }
+
         private fun noteFile(id: String) = "$NOTE_PREFIX$id$JSON_EXT"
         private fun folderFile(id: String) = "$FOLDER_PREFIX$id$JSON_EXT"
         private fun attachmentFile(id: String) = "$ATTACHMENT_PREFIX$id$BIN_EXT"
@@ -159,6 +166,7 @@ class SyncRepository private constructor(context: Context) {
                     VaultException.Reason.CONCURRENT_CHANGE -> R.string.err_vault_concurrent
                 }
             )
+            is PlainModeException -> res.getString(R.string.err_plain_vault_folder)
             is WebDavAuthException -> res.getString(R.string.err_auth)
             is UnknownHostException -> res.getString(R.string.err_unknown_host)
             is SocketTimeoutException -> res.getString(R.string.err_timeout)
@@ -213,6 +221,7 @@ class SyncRepository private constructor(context: Context) {
             try {
                 val client = createClient(credentials)
                 client.ensureRootFolder()
+                if (!credentials.encrypted) return@withContext connectPlain(client, credentials)
                 val (ring, _) = vault.unlockRemote(client, masterPassword)
 
                 try {
@@ -244,6 +253,34 @@ class SyncRepository private constructor(context: Context) {
                 Result.failure(Exception(friendlyMessage(e), e))
             }
         }
+
+    /** Modo sin cifrar: no hay bóveda. Nunca se usa una carpeta que ya tenga notas cifradas. */
+    private suspend fun connectPlain(client: WebDavClient, credentials: NextcloudCredentials): Result<Unit> {
+        if (client.downloadOrNull(KeyInfo.FILE_NAME) != null) throw PlainModeException()
+        try {
+            val untitled = LanguageManager.localizedContext(appContext).getString(R.string.untitled)
+            BackupManager(appContext).exportSafetyCopy(untitled)
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo guardar la copia previa a la sincronización", e)
+        }
+        syncMutex.withLock {
+            database.withTransaction {
+                noteDao.resetSyncMetadata()
+                folderDao.resetSyncMetadata()
+                tombstoneDao.clear()
+                historyDao.clearBases()
+                revDao.clear()
+                database.plainFileDao().clear()
+            }
+            authPreferences.clearDerivedKey()
+            authPreferences.clearVaultParams()
+            authPreferences.saveCredentials(credentials)
+        }
+        return Result.success(Unit)
+    }
+
+    /** La carpeta elegida para el modo sin cifrar ya contiene una bóveda cifrada. */
+    class PlainModeException : Exception("Folder contains an encrypted vault")
 
     /**
      * Desbloqueo con el servidor (si hay conexión): así se recoge una bóveda que otro
@@ -277,6 +314,7 @@ class SyncRepository private constructor(context: Context) {
 
     suspend fun synchronize(): Result<Unit> = withContext(Dispatchers.IO) {
         val credentials = authPreferences.getCredentials()
+        if (credentials != null && !credentials.encrypted) return@withContext synchronizePlain(credentials)
         val ring = authPreferences.getKeyring()
         if (credentials == null || ring == null) {
             _syncState.value = SyncState.Idle
@@ -308,6 +346,38 @@ class SyncRepository private constructor(context: Context) {
             Log.w(TAG, "synchronize", e)
             _syncState.value = SyncState.Error(friendlyMessage(e), e)
             Result.failure(e)
+        } finally {
+            syncMutex.unlock()
+        }
+    }
+
+    private suspend fun synchronizePlain(credentials: NextcloudCredentials): Result<Unit> {
+        if (!syncMutex.tryLock()) {
+            rerunRequested = true
+            return Result.success(Unit)
+        }
+        try {
+            val res = LanguageManager.localizedContext(appContext)
+            val engine = PlainSync(database, attachmentStore, res.getString(R.string.conflict_suffix), res.getString(R.string.untitled))
+            val client = createClient(credentials)
+            var total = PlainSync.Result(false, 0, 0)
+            var rounds = 0
+            do {
+                rerunRequested = false
+                _syncState.value = SyncState.Syncing(SyncStage.DOWNLOADING)
+                val r = engine.round(client)
+                total = PlainSync.Result(r.rerun, total.warnings + r.warnings, total.protectedNotes + r.protectedNotes)
+                rounds++
+            } while ((r.rerun || rerunRequested) && rounds < MAX_ROUNDS)
+            historyDao.deleteOrphanBases()
+            val now = System.currentTimeMillis()
+            authPreferences.setLastSync(now)
+            _syncState.value = SyncState.Success(now, total.warnings, total.protectedNotes)
+            return Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w(TAG, "synchronizePlain", e)
+            _syncState.value = SyncState.Error(friendlyMessage(e), e)
+            return Result.failure(e)
         } finally {
             syncMutex.unlock()
         }

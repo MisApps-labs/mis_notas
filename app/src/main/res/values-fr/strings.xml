@@ -452,4 +452,8 @@
         <item quantity="many">⚠ Le serveur a renvoyé %1$d fichiers dans une version antérieure ; ils n’ont pas été appliqués.</item>
         <item quantity="other">⚠ Le serveur a renvoyé %1$d fichiers dans une version antérieure ; ils n’ont pas été appliqués.</item>
     </plurals>
+    <string name="mode_encrypted">Chiffré de bout en bout</string>
+    <string name="mode_plain">Non chiffré (.md)</string>
+    <string name="mode_plain_desc">Chaque note est un fichier Markdown lisible dans le dossier « Notes », compatible avec Nextcloud Notes, le web de Nextcloud et Obsidian. L’administrateur du serveur peut les lire. Épinglage, couleur et corbeille restent sur cet appareil. L’app de bureau et l’extension n’utilisent pas ce mode.</string>
+    <string name="err_plain_vault_folder">Ce dossier contient des notes chiffrées. Choisissez un autre dossier pour le mode non chiffré.</string>
 </resources>

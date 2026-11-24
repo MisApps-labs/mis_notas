@@ -18,6 +18,7 @@ import com.ferlagod.misnotas.data.local.dao.NoteDao
 import com.ferlagod.misnotas.data.local.dao.NoteHistoryDao
 import com.ferlagod.misnotas.data.local.dao.ReminderDao
 import com.ferlagod.misnotas.data.local.dao.RemoteRevDao
+import com.ferlagod.misnotas.data.local.dao.PlainFileDao
 import com.ferlagod.misnotas.data.local.dao.RemoteTombstoneDao
 import com.ferlagod.misnotas.data.local.entity.AttachmentEntity
 import com.ferlagod.misnotas.data.local.entity.FolderEntity
@@ -26,6 +27,7 @@ import com.ferlagod.misnotas.data.local.entity.NoteRevisionEntity
 import com.ferlagod.misnotas.data.local.entity.NoteSyncBaseEntity
 import com.ferlagod.misnotas.data.local.entity.ReminderEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteRevEntity
+import com.ferlagod.misnotas.data.local.entity.PlainFileEntity
 import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
 
 /**
@@ -40,9 +42,10 @@ import com.ferlagod.misnotas.data.local.entity.RemoteTombstoneEntity
         NoteRevisionEntity::class,
         NoteSyncBaseEntity::class,
         ReminderEntity::class,
-        RemoteRevEntity::class
+        RemoteRevEntity::class,
+        PlainFileEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -55,12 +58,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteHistoryDao(): NoteHistoryDao
     abstract fun reminderDao(): ReminderDao
     abstract fun remoteRevDao(): RemoteRevDao
+    abstract fun plainFileDao(): PlainFileDao
 
     companion object {
         private const val DATABASE_NAME = "misnotas.db"
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        @androidx.annotation.VisibleForTesting
+        fun resetForTesting() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -163,13 +175,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v5 -> v6: ficheros del modo sin cifrar. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `plain_files` (`noteId` TEXT NOT NULL, `path` TEXT NOT NULL, `etag` TEXT, PRIMARY KEY(`noteId`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_plain_files_path` ON `plain_files` (`path`)")
+            }
+        }
+
         private fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
         }
     }

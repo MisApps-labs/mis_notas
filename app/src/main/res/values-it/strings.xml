@@ -452,4 +452,8 @@
         <item quantity="many">⚠ Il server ha restituito %1$d file in una versione precedente; non sono stati applicati.</item>
         <item quantity="other">⚠ Il server ha restituito %1$d file in una versione precedente; non sono stati applicati.</item>
     </plurals>
+    <string name="mode_encrypted">Cifrato end-to-end</string>
+    <string name="mode_plain">Non cifrato (.md)</string>
+    <string name="mode_plain_desc">Ogni nota è un file Markdown leggibile nella cartella «Notes», compatibile con Nextcloud Notes, il web di Nextcloud e Obsidian. Chi gestisce il server può leggerle. Fissate, colore e cestino restano su questo dispositivo. L’app desktop e l’estensione non usano questa modalità.</string>
+    <string name="err_plain_vault_folder">Quella cartella contiene note cifrate. Scegli un’altra cartella per la modalità non cifrata.</string>
 </resources>
