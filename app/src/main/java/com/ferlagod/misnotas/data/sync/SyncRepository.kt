@@ -21,6 +21,8 @@ import com.ferlagod.misnotas.data.local.model.NoteContentParser
 import com.ferlagod.misnotas.data.local.model.SyncStatus
 import com.ferlagod.misnotas.data.local.pref.AuthPreferences
 import com.ferlagod.misnotas.data.local.pref.NextcloudCredentials
+import com.ferlagod.misnotas.data.remote.http.HttpClientProvider
+import com.ferlagod.misnotas.data.remote.webdav.ConnectionDiagnostics
 import com.ferlagod.misnotas.data.remote.webdav.RemoteFileMeta
 import com.ferlagod.misnotas.data.remote.webdav.WebDavAuthException
 import com.ferlagod.misnotas.data.remote.webdav.WebDavClient
@@ -143,7 +145,18 @@ class SyncRepository private constructor(context: Context) {
             is WebDavAuthException -> res.getString(R.string.err_auth)
             is UnknownHostException -> res.getString(R.string.err_unknown_host)
             is SocketTimeoutException -> res.getString(R.string.err_timeout)
-            is SSLException -> res.getString(R.string.err_ssl)
+            is SSLException -> res.getString(
+                when (ConnectionDiagnostics.networkIssue(e)) {
+                    ConnectionDiagnostics.Issue.CERT_UNTRUSTED -> R.string.err_ssl_untrusted
+                    ConnectionDiagnostics.Issue.CERT_HOSTNAME -> R.string.err_ssl_hostname
+                    else -> R.string.err_ssl
+                }
+            )
+            is IllegalArgumentException -> if (e.message?.contains("HTTP", ignoreCase = true) == true) {
+                res.getString(R.string.err_https_required)
+            } else {
+                e.localizedMessage ?: res.getString(R.string.err_unknown)
+            }
             is WebDavException ->
                 if (e.reason == WebDavException.Reason.PATH_NOT_FOUND) res.getString(R.string.err_path_not_found)
                 else res.getString(R.string.err_server, e.code)
@@ -162,7 +175,8 @@ class SyncRepository private constructor(context: Context) {
     fun createClient(credentials: NextcloudCredentials): WebDavClient = WebDavClient(
         baseUrl = authPreferences.buildWebDavRootUrl(credentials),
         username = credentials.username,
-        appPassword = credentials.appPassword
+        appPassword = credentials.appPassword,
+        okHttpClient = HttpClientProvider.get(appContext)
     )
 
     // ==================================================================
@@ -201,7 +215,7 @@ class SyncRepository private constructor(context: Context) {
                         attachmentDao.markAllPendingUpload()
                         tombstoneDao.clear()
                     }
-                    authPreferences.saveCredentials(credentials.serverUrl, credentials.username, credentials.appPassword)
+                    authPreferences.saveCredentials(credentials)
                     authPreferences.saveDerivedKey(key)
                 }
                 Result.success(Unit)

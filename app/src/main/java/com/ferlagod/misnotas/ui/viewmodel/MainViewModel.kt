@@ -26,7 +26,12 @@ import com.ferlagod.misnotas.data.local.model.SyncStatus
 import com.ferlagod.misnotas.data.local.pref.AppSettings
 import com.ferlagod.misnotas.data.local.pref.AppSettingsState
 import com.ferlagod.misnotas.data.local.pref.NextcloudCredentials
+import com.ferlagod.misnotas.data.local.pref.ServerKind
 import com.ferlagod.misnotas.data.local.pref.ServerUrl
+import com.ferlagod.misnotas.data.remote.http.HttpClientProvider
+import com.ferlagod.misnotas.data.remote.http.TrustedCertificates
+import com.ferlagod.misnotas.data.remote.nextcloud.LoginFlow
+import com.ferlagod.misnotas.data.remote.webdav.ConnectionDiagnostics
 import com.ferlagod.misnotas.data.local.pref.SortOrder
 import com.ferlagod.misnotas.data.local.pref.ThemeMode
 import com.ferlagod.misnotas.data.sync.SyncMerger
@@ -42,6 +47,7 @@ import com.ferlagod.misnotas.util.LanguageManager
 import com.ferlagod.misnotas.util.TextSearch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -81,6 +87,22 @@ sealed interface UiEvent {
 sealed interface PendingNavigation {
     data object NewNote : PendingNavigation
     data class OpenNote(val noteId: String) : PendingNavigation
+}
+
+/** Estado del inicio de sesión de Nextcloud en el navegador. */
+sealed interface LoginFlowState {
+    data object Idle : LoginFlowState
+    data object Starting : LoginFlowState
+    data class Waiting(val loginUrl: String) : LoginFlowState
+    data class Done(val serverUrl: String, val username: String, val appPassword: String) : LoginFlowState
+    data class Error(val message: String) : LoginFlowState
+}
+
+/** Estado de "Probar conexión". */
+sealed interface DiagnosticsState {
+    data object Idle : DiagnosticsState
+    data object Running : DiagnosticsState
+    data class Done(val rootUrl: String, val report: ConnectionDiagnostics.Report) : DiagnosticsState
 }
 
 /** Id fijo de la nota de bienvenida: igual en todos los dispositivos para que no se duplique. */
@@ -301,7 +323,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Cuenta y cifrado
     // ==========================================
 
+    /**
+     * Conecta la cuenta. Una dirección WebDAV de la raíz personal de Nextcloud se convierte en la
+     * carpeta de la app (ver [ServerUrl]); si es la misma que ya está guardada se respeta, porque
+     * cambiarla movería la bóveda de sitio.
+     */
     fun setupAndUnlock(
+        kind: ServerKind,
         serverUrl: String,
         username: String,
         appPassword: String,
@@ -313,16 +341,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onError(text(R.string.err_all_fields))
             return
         }
-        // Una dirección WebDAV de la raíz personal se convierte en la carpeta de la app (ver ServerUrl).
-        // Si es la misma que ya está guardada se respeta: cambiarla movería la bóveda de sitio.
-        val savedUrl = authPreferences.getCredentials()?.serverUrl
-        val url = if (savedUrl != null && serverUrl.trim().trimEnd('/') == savedUrl) savedUrl else ServerUrl.normalize(serverUrl)
-        if (!url.startsWith("https://", ignoreCase = true)) {
+        val url = resolveServerUrl(kind, serverUrl)
+        if (!ServerUrl.isAllowed(url)) {
             onError(text(R.string.err_https_required))
             return
         }
         viewModelScope.launch {
-            val credentials = NextcloudCredentials(url, username.trim(), appPassword.trim())
+            val credentials = NextcloudCredentials(url, username.trim(), appPassword.trim(), kind)
             syncRepository.connectAccount(credentials, masterPassword)
                 .onSuccess {
                     refreshSafetyCopy()
@@ -334,6 +359,118 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 .onFailure { onError(it.message ?: text(R.string.err_connect_failed)) }
         }
+    }
+
+    private fun resolveServerUrl(kind: ServerKind, serverUrl: String): String {
+        val saved = authPreferences.getCredentials()
+        if (saved != null && saved.kind == kind && serverUrl.trim().trimEnd('/') == saved.serverUrl) return saved.serverUrl
+        return if (kind == ServerKind.WEBDAV) ServerUrl.normalizeWebDav(serverUrl) else ServerUrl.normalize(serverUrl)
+    }
+
+    // --- Inicio de sesión de Nextcloud en el navegador (Login Flow v2) ---
+
+    private val _loginFlow = MutableStateFlow<LoginFlowState>(LoginFlowState.Idle)
+    val loginFlow: StateFlow<LoginFlowState> = _loginFlow.asStateFlow()
+    private var loginFlowJob: Job? = null
+
+    /**
+     * Pide al servidor una sesión de inicio, abre el navegador con [openBrowser] y espera a que
+     * el usuario autorice la app. El resultado (usuario y contraseña de aplicación) llega en [loginFlow].
+     */
+    fun startNextcloudLogin(serverUrl: String, openBrowser: (String) -> Unit) {
+        loginFlowJob?.cancel()
+        val typed = ServerUrl.normalize(serverUrl)
+        if (ServerUrl.host(typed) == null) {
+            _loginFlow.value = LoginFlowState.Error(text(R.string.err_all_fields))
+            return
+        }
+        if (!ServerUrl.isAllowed(typed)) {
+            _loginFlow.value = LoginFlowState.Error(text(R.string.err_https_required))
+            return
+        }
+        loginFlowJob = viewModelScope.launch {
+            _loginFlow.value = LoginFlowState.Starting
+            try {
+                val flow = LoginFlow(HttpClientProvider.get(getApplication()))
+                val session = flow.start(typed)
+                _loginFlow.value = LoginFlowState.Waiting(session.loginUrl)
+                openBrowser(session.loginUrl)
+                val result = flow.poll(session)
+                // Si el usuario eligió una subcarpeta WebDAV concreta se respeta; si no, se usa
+                // la dirección que devuelve el servidor (puede diferir de la escrita).
+                val server = if (typed.contains("/remote.php/dav/files/", ignoreCase = true)) typed else ServerUrl.normalize(result.server)
+                _loginFlow.value = LoginFlowState.Done(server, result.loginName, result.appPassword)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: LoginFlow.NotSupportedException) {
+                _loginFlow.value = LoginFlowState.Error(text(R.string.login_flow_not_supported))
+            } catch (_: java.util.concurrent.TimeoutException) {
+                _loginFlow.value = LoginFlowState.Error(text(R.string.login_flow_expired))
+            } catch (e: Exception) {
+                _loginFlow.value = LoginFlowState.Error(syncRepository.friendlyMessage(e))
+            }
+        }
+    }
+
+    fun cancelNextcloudLogin() {
+        loginFlowJob?.cancel()
+        loginFlowJob = null
+        _loginFlow.value = LoginFlowState.Idle
+    }
+
+    // --- Prueba de conexión y certificados ---
+
+    private val _diagnostics = MutableStateFlow<DiagnosticsState>(DiagnosticsState.Idle)
+    val diagnostics: StateFlow<DiagnosticsState> = _diagnostics.asStateFlow()
+    private var diagnosticsJob: Job? = null
+
+    fun testConnection(kind: ServerKind, serverUrl: String, username: String, appPassword: String) {
+        diagnosticsJob?.cancel()
+        val url = resolveServerUrl(kind, serverUrl)
+        val root = authPreferences.buildWebDavRootUrl(NextcloudCredentials(url, username.trim(), appPassword.trim(), kind))
+        diagnosticsJob = viewModelScope.launch {
+            _diagnostics.value = DiagnosticsState.Running
+            val report = ConnectionDiagnostics(getApplication()).run(root, username.trim(), appPassword.trim())
+            _diagnostics.value = DiagnosticsState.Done(root, report)
+        }
+    }
+
+    fun dismissDiagnostics() {
+        diagnosticsJob?.cancel()
+        _diagnostics.value = DiagnosticsState.Idle
+    }
+
+    private val trustedCertificates = TrustedCertificates(application)
+
+    private val _trustedCerts = MutableStateFlow(trustedCertificates.infos())
+    val trustedCerts: StateFlow<List<TrustedCertificates.Info>> = _trustedCerts.asStateFlow()
+
+    fun trustCertificate(cert: java.security.cert.X509Certificate) {
+        trustedCertificates.add(cert)
+        _trustedCerts.value = trustedCertificates.infos()
+    }
+
+    /** Importa un certificado (PEM o DER) elegido por el usuario: el de su CA o el del servidor. */
+    fun importCertificate(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val bytes = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                } ?: throw java.io.IOException("empty")
+                TrustedCertificates.parse(bytes).forEach { trustedCertificates.add(it) }
+                _trustedCerts.value = trustedCertificates.infos()
+                _events.send(UiEvent.Message(text(R.string.cert_imported)))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _events.send(UiEvent.Message(text(R.string.cert_import_failed)))
+            }
+        }
+    }
+
+    fun removeCertificate(sha256: String) {
+        trustedCertificates.remove(sha256)
+        _trustedCerts.value = trustedCertificates.infos()
     }
 
     fun unlockWithPassword(

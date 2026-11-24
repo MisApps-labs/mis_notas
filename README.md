@@ -53,7 +53,7 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - **Copia de seguridad en Markdown**: exporta todo a un ZIP (carpetas, imágenes y metadatos) e importa `.zip`, `.md` y `.txt`. Compatible con Obsidian, Joplin, etc.
 - **Bloqueo de la app** con huella, cara o PIN del dispositivo, y contenido oculto en las apps recientes.
 - **Móviles plegables y tablets**: en pantallas anchas la lista y la nota se ven lado a lado; al plegar el móvil la nota sigue abierta sin perder nada.
-- **Sincronización con Nextcloud** (WebDAV) automática: al abrir la app, al editar y cada ~30 minutos en segundo plano.
+- **Sincronización con Nextcloud, ownCloud o cualquier WebDAV** automática: al abrir la app, al editar y cada ~30 minutos en segundo plano. Inicio de sesión de Nextcloud en el navegador, certificados autofirmados y prueba de conexión con diagnóstico.
 - **Cifrado de extremo a extremo** AES-256-GCM con una contraseña maestra que nunca sale del dispositivo.
 - **Sin conflictos silenciosos**: si una nota se edita a la vez en dos dispositivos, se conservan ambas versiones.
 - Diseño de la familia **Mis Apps** (compartido con Mis Podcast): tipografías Outfit e Inter, verde del logo como color principal, tema claro, oscuro o del sistema con opción de negro puro AMOLED, e icono temático en Android 13+.
@@ -67,15 +67,19 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 
 Requisitos: Android 8.0 (API 26) o superior.
 
-## Conectar con Nextcloud
+## Conectar con tu servidor
 
-1. En la web de tu Nextcloud ve a **Ajustes personales → Seguridad → Dispositivos y sesiones** y crea una **contraseña de aplicación** (por ejemplo "Mis Notas"). No uses tu contraseña normal.
-2. En la app, abre **Ajustes** (icono de engranaje) → **Sincronización con Nextcloud** e introduce:
-   - **Servidor**: la dirección de tu Nextcloud, p. ej. `https://nube.ejemplo.com`.
-     También puedes pegar una URL WebDAV completa (`https://…/remote.php/dav/files/usuario/carpeta`).
-   - **Usuario** y la **contraseña de aplicación** del paso 1.
-   - **Contraseña maestra**: la que cifra tus notas.
-3. Pulsa **Conectar y cifrar**. La app crea la carpeta `MisNotas` en tu Nextcloud y sube tus notas cifradas.
+Funciona con **Nextcloud, ownCloud y cualquier servidor WebDAV** (Synology, Seafile, Koofr, rclone, Apache…).
+
+1. Abre **Ajustes** (icono de engranaje) → **Sincronización**.
+2. Elige el tipo de servidor:
+   - **Nextcloud / ownCloud**: escribe la dirección (p. ej. `https://nube.ejemplo.com`) y pulsa **Iniciar sesión en el navegador**. Autorizas la app y Nextcloud le da una contraseña de aplicación propia, sin copiar nada a mano. También puedes escribir una contraseña de aplicación.
+   - **Otro WebDAV**: escribe la dirección de la carpeta para tus notas, tu usuario y tu contraseña.
+3. Escribe la **contraseña maestra**: la que cifra tus notas.
+4. Si quieres, pulsa **Probar conexión**: revisa paso a paso el certificado, las credenciales, los permisos y que el servidor no permita pisar cambios entre dispositivos.
+5. Pulsa **Conectar y cifrar**.
+
+¿Certificado autofirmado, CA propia o un NAS en casa por HTTP? Consulta [docs/SERVIDORES.md](docs/SERVIDORES.md).
 
 ### Usar varios dispositivos
 

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Copyright (C) 2026 ferlagod
+  Mis Notas — https://github.com/MisApps-labs/mis_notas
+-->
+<!--
+  Android no permite limitar el HTTP sin cifrar a "la red local" (no admite rangos de IP), así que
+  aquí se permite y es la app la que lo restringe: WebDavClient y el inicio de sesión solo aceptan
+  http:// para direcciones privadas, localhost o nombres .local/.lan (ver ServerUrl.isLocalHost).
+  Los certificados que el usuario decide aceptar se gestionan dentro de la app (TrustedCertificates),
+  no con las CA de usuario del sistema.
+-->
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

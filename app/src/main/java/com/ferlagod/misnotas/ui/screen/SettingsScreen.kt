@@ -119,6 +119,9 @@ import com.ferlagod.misnotas.data.backup.BackupManager
 import com.ferlagod.misnotas.data.local.pref.AppSettings
 import com.ferlagod.misnotas.data.local.pref.AppSettingsState
 import com.ferlagod.misnotas.data.local.pref.NextcloudCredentials
+import com.ferlagod.misnotas.data.remote.http.TrustedCertificates
+import com.ferlagod.misnotas.ui.viewmodel.DiagnosticsState
+import com.ferlagod.misnotas.ui.viewmodel.LoginFlowState
 import com.ferlagod.misnotas.data.local.pref.SortOrder
 import com.ferlagod.misnotas.data.local.pref.ThemeMode
 import com.ferlagod.misnotas.data.sync.SyncState
@@ -141,7 +144,10 @@ fun SettingsScreen(
     snackbarHostState: SnackbarHostState,
     isAppLockAvailable: Boolean,
     onBack: () -> Unit,
-    onSaveNextcloud: (serverUrl: String, user: String, appPass: String, masterPass: String, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
+    loginFlow: LoginFlowState,
+    diagnostics: DiagnosticsState,
+    trustedCerts: List<TrustedCertificates.Info>,
+    accountActions: AccountActions,
     onDisconnectNextcloud: () -> Unit,
     onTriggerSync: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
@@ -385,7 +391,10 @@ fun SettingsScreen(
                         currentCredentials = currentCredentials,
                         syncState = syncState,
                         lastSync = lastSync,
-                        onSaveNextcloud = onSaveNextcloud,
+                        loginFlow = loginFlow,
+                        diagnostics = diagnostics,
+                        trustedCerts = trustedCerts,
+                        accountActions = accountActions,
                         onDisconnectNextcloud = onDisconnectNextcloud,
                         onTriggerSync = onTriggerSync
                     )
@@ -561,25 +570,17 @@ private fun NextcloudSection(
     currentCredentials: NextcloudCredentials?,
     syncState: SyncState,
     lastSync: Long?,
-    onSaveNextcloud: (serverUrl: String, user: String, appPass: String, masterPass: String, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
+    loginFlow: LoginFlowState,
+    diagnostics: DiagnosticsState,
+    trustedCerts: List<TrustedCertificates.Info>,
+    accountActions: AccountActions,
     onDisconnectNextcloud: () -> Unit,
     onTriggerSync: () -> Unit
 ) {
-    val msgRequiredFields = stringResource(R.string.error_required_fields)
-    val msgMasterRequired = stringResource(R.string.error_master_required)
     val msgConnected = stringResource(R.string.account_connected_syncing)
     val msgSyncStarted = stringResource(R.string.sync_started)
     val msgDisconnected = stringResource(R.string.disconnected_message)
     val primary = MaterialTheme.colorScheme.primary
-    val focusManager = LocalFocusManager.current
-
-    var serverUrl by remember(currentCredentials) { mutableStateOf(currentCredentials?.serverUrl ?: "https://") }
-    var username by remember(currentCredentials) { mutableStateOf(currentCredentials?.username ?: "") }
-    var appPassword by remember(currentCredentials) { mutableStateOf(currentCredentials?.appPassword ?: "") }
-    var masterPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var masterPasswordVisible by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var showDisconnectConfirm by remember { mutableStateOf(false) }
@@ -695,10 +696,6 @@ private fun NextcloudSection(
                         onClick = {
                             showDisconnectConfirm = false
                             onDisconnectNextcloud()
-                            serverUrl = "https://"
-                            username = ""
-                            appPassword = ""
-                            masterPassword = ""
                             errorMessage = null
                             successMessage = msgDisconnected
                         },
@@ -715,108 +712,20 @@ private fun NextcloudSection(
     AnimatedVisibility(visible = editing) {
         Column {
             Spacer(modifier = Modifier.height(16.dp))
-            SettingsTextField(
-                value = serverUrl,
-                onValueChange = { serverUrl = it; errorMessage = null; successMessage = null },
-                placeholder = stringResource(R.string.server_hint),
-                leadingIcon = Icons.Rounded.Storage,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            SettingsTextField(
-                value = username,
-                onValueChange = { username = it; errorMessage = null; successMessage = null },
-                placeholder = stringResource(R.string.username_hint),
-                leadingIcon = Icons.Rounded.Person,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            SettingsTextField(
-                value = appPassword,
-                onValueChange = { appPassword = it; errorMessage = null; successMessage = null },
-                placeholder = stringResource(R.string.app_password_hint),
-                leadingIcon = Icons.Rounded.Key,
-                isPassword = true,
-                passwordVisible = passwordVisible,
-                onTogglePassword = { passwordVisible = !passwordVisible },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next)
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Security, contentDescription = null, tint = primary, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(R.string.section_e2ee),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = primary
+            // Se vuelve a crear al cambiar de cuenta para que tome los datos guardados.
+            androidx.compose.runtime.key(currentCredentials) {
+                AccountForm(
+                    initial = currentCredentials,
+                    loginFlow = loginFlow,
+                    diagnostics = diagnostics,
+                    trustedCerts = trustedCerts,
+                    submitLabel = if (isConfigured) stringResource(R.string.update_and_sync) else stringResource(R.string.connect_and_encrypt),
+                    actions = accountActions,
+                    onConnected = {
+                        editing = false
+                        successMessage = msgConnected
+                    }
                 )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.e2ee_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            SettingsTextField(
-                value = masterPassword,
-                onValueChange = { masterPassword = it; errorMessage = null; successMessage = null },
-                placeholder = stringResource(R.string.master_password_hint),
-                leadingIcon = Icons.Rounded.Lock,
-                isPassword = true,
-                passwordVisible = masterPasswordVisible,
-                onTogglePassword = { masterPasswordVisible = !masterPasswordVisible },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    focusManager.clearFocus()
-                    if (serverUrl.isBlank() || serverUrl.trim() == "https://" || username.isBlank() || appPassword.isBlank()) {
-                        errorMessage = msgRequiredFields
-                        return@Button
-                    }
-                    if (masterPassword.isBlank()) {
-                        errorMessage = msgMasterRequired
-                        return@Button
-                    }
-                    isLoading = true
-                    errorMessage = null
-                    successMessage = null
-                    onSaveNextcloud(
-                        serverUrl.trim(),
-                        username.trim(),
-                        appPassword.trim(),
-                        masterPassword,
-                        {
-                            isLoading = false
-                            editing = false
-                            masterPassword = ""
-                            successMessage = msgConnected
-                        },
-                        { error ->
-                            isLoading = false
-                            errorMessage = error
-                        }
-                    )
-                },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(
-                        text = if (isConfigured) stringResource(R.string.update_and_sync) else stringResource(R.string.connect_and_encrypt),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                }
             }
         }
     }
@@ -906,62 +815,3 @@ private fun AboutSection() {
 }
 
 private const val REPO_URL = "https://github.com/MisApps-labs/mis_notas"
-
-@Composable
-private fun SettingsTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    leadingIcon: ImageVector,
-    isPassword: Boolean = false,
-    passwordVisible: Boolean = false,
-    onTogglePassword: () -> Unit = {},
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = {
-            Text(
-                text = placeholder,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        },
-        trailingIcon = if (isPassword) {
-            {
-                IconButton(onClick = onTogglePassword) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                        contentDescription = stringResource(R.string.cd_toggle_password),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        } else null,
-        visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
-        singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent,
-            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-        ),
-        shape = RoundedCornerShape(12.dp),
-        keyboardOptions = keyboardOptions,
-        keyboardActions = keyboardActions,
-        modifier = Modifier.fillMaxWidth()
-    )
-}

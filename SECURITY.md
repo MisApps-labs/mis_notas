@@ -44,8 +44,9 @@ En el teléfono la base de datos de notas **no está cifrada por la app**: depen
 
 ### Transporte
 
-- HTTPS con la validación de certificados por defecto de Android. La app no acepta tráfico HTTP sin cifrar ni certificados autofirmados que no estén instalados en el sistema.
-- Autenticación con *contraseña de aplicación* de Nextcloud (HTTP Basic sobre TLS).
+- HTTPS con la validación de certificados de Android. Además, el usuario puede confiar en certificados concretos (autofirmados o de su propia CA) tras ver su huella SHA-256; se guardan en el almacenamiento privado de la app y solo los usa ella. El nombre del servidor se comprueba siempre.
+- HTTP sin cifrar solo se acepta para direcciones de la red local (IP privadas, `localhost`, `*.local`…), con aviso. El contenido sigue cifrado de extremo a extremo; lo que viaja en claro es la contraseña del servidor.
+- Autenticación HTTP Basic con una *contraseña de aplicación* de Nextcloud, que la app puede obtener con el inicio de sesión en el navegador (Login Flow v2), o con el usuario y la contraseña de otro servidor WebDAV.
 
 ## Limitaciones conocidas
 

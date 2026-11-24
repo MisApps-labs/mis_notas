@@ -66,6 +66,7 @@ import com.ferlagod.misnotas.data.local.pref.Hints
 import com.ferlagod.misnotas.data.local.pref.ThemeMode
 import com.ferlagod.misnotas.ui.screen.AppLockScreen
 import com.ferlagod.misnotas.ui.screen.FoldersScreen
+import com.ferlagod.misnotas.ui.screen.AccountActions
 import com.ferlagod.misnotas.ui.screen.LoginScreen
 import com.ferlagod.misnotas.ui.screen.NoteEditorScreen
 import com.ferlagod.misnotas.ui.screen.NotesActions
@@ -292,6 +293,28 @@ private fun AppNavigationHost(
     val pendingNavigation by viewModel.pendingNavigation.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val safetyCopyTime by viewModel.safetyCopyTime.collectAsStateWithLifecycle()
+    val loginFlow by viewModel.loginFlow.collectAsStateWithLifecycle()
+    val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
+    val trustedCerts by viewModel.trustedCerts.collectAsStateWithLifecycle()
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val accountActions = remember(viewModel) {
+        AccountActions(
+            startLogin = { url -> viewModel.startNextcloudLogin(url) { loginUrl -> runCatching { uriHandler.openUri(loginUrl) } } },
+            cancelLogin = viewModel::cancelNextcloudLogin,
+            test = viewModel::testConnection,
+            dismissDiagnostics = viewModel::dismissDiagnostics,
+            trustCertificate = viewModel::trustCertificate,
+            importCertificate = viewModel::importCertificate,
+            removeCertificate = viewModel::removeCertificate,
+            submit = { kind, url, user, pass, master, onSuccess, onError ->
+                viewModel.setupAndUnlock(kind, url, user, pass, master, onSuccess = {
+                    viewModel.cancelNextcloudLogin()
+                    viewModel.dismissDiagnostics()
+                    onSuccess()
+                }, onError = onError)
+            }
+        )
+    }
 
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
@@ -349,9 +372,11 @@ private fun AppNavigationHost(
         composable(AppDestinations.LOGIN) {
             LoginScreen(
                 isConfigured = isConfigured,
-                onSetupAndUnlock = { serverUrl, user, appPass, masterPass, onError ->
-                    viewModel.setupAndUnlock(serverUrl, user, appPass, masterPass, onSuccess = { navController.goHome() }, onError = onError)
-                },
+                loginFlow = loginFlow,
+                diagnostics = diagnostics,
+                trustedCerts = trustedCerts,
+                accountActions = accountActions,
+                onConnected = { navController.goHome() },
                 onUnlock = { masterPass, onError ->
                     viewModel.unlockWithPassword(masterPass, onSuccess = { navController.goHome() }, onError = onError)
                 },
@@ -405,7 +430,10 @@ private fun AppNavigationHost(
                 snackbarHostState = snackbarHostState,
                 isAppLockAvailable = isAppLockAvailable(),
                 onBack = { navController.popBackStack() },
-                onSaveNextcloud = viewModel::setupAndUnlock,
+                loginFlow = loginFlow,
+                diagnostics = diagnostics,
+                trustedCerts = trustedCerts,
+                accountActions = accountActions,
                 onDisconnectNextcloud = viewModel::disconnectNextcloud,
                 onTriggerSync = viewModel::triggerSync,
                 onThemeChange = viewModel::setThemeMode,

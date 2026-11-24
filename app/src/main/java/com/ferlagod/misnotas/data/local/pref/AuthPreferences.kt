@@ -21,7 +21,8 @@ import javax.crypto.SecretKey
 data class NextcloudCredentials(
     val serverUrl: String,
     val username: String,
-    val appPassword: String
+    val appPassword: String,
+    val kind: ServerKind = ServerKind.NEXTCLOUD
 )
 
 /**
@@ -38,6 +39,7 @@ class AuthPreferences private constructor(context: Context) {
         private const val KEY_SERVER_URL = "key_server_url"
         private const val KEY_USERNAME = "key_username"
         private const val KEY_APP_PASSWORD = "key_app_password"
+        private const val KEY_SERVER_KIND = "key_server_kind"
         private const val KEY_SALT_BASE64 = "key_salt_base64"
         private const val KEY_ITERATIONS = "key_kdf_iterations"
         private const val KEY_CHECK = "key_check"
@@ -97,11 +99,12 @@ class AuthPreferences private constructor(context: Context) {
     // Credenciales
     // ------------------------------------------------------------------
 
-    fun saveCredentials(serverUrl: String, username: String, appPassword: String) {
+    fun saveCredentials(credentials: NextcloudCredentials) {
         prefs.edit {
-            putString(KEY_SERVER_URL, serverUrl.trim().trimEnd('/'))
-            putString(KEY_USERNAME, username.trim())
-            putString(KEY_APP_PASSWORD, appPassword.trim())
+            putString(KEY_SERVER_URL, credentials.serverUrl.trim().trimEnd('/'))
+            putString(KEY_USERNAME, credentials.username.trim())
+            putString(KEY_APP_PASSWORD, credentials.appPassword.trim())
+            putString(KEY_SERVER_KIND, credentials.kind.key)
         }
     }
 
@@ -109,7 +112,7 @@ class AuthPreferences private constructor(context: Context) {
         val server = prefs.getString(KEY_SERVER_URL, null)?.takeIf { it.isNotBlank() } ?: return null
         val user = prefs.getString(KEY_USERNAME, null)?.takeIf { it.isNotBlank() } ?: return null
         val pass = prefs.getString(KEY_APP_PASSWORD, null)?.takeIf { it.isNotBlank() } ?: return null
-        return NextcloudCredentials(server, user, pass)
+        return NextcloudCredentials(server, user, pass, ServerKind.fromKey(prefs.getString(KEY_SERVER_KIND, null)))
     }
 
     fun hasCredentials(): Boolean = getCredentials() != null
@@ -119,6 +122,7 @@ class AuthPreferences private constructor(context: Context) {
             remove(KEY_SERVER_URL)
             remove(KEY_USERNAME)
             remove(KEY_APP_PASSWORD)
+            remove(KEY_SERVER_KIND)
             remove(KEY_LAST_SYNC)
         }
     }
@@ -191,12 +195,14 @@ class AuthPreferences private constructor(context: Context) {
 
     /**
      * URL WebDAV de la carpeta de la app:
-     * https://servidor/remote.php/dav/files/<usuario>/MisNotas/
+     * - Nextcloud/ownCloud: https://servidor/remote.php/dav/files/<usuario>/MisNotas/
+     * - WebDAV genérico: la dirección de la carpeta tal cual.
      */
     fun getWebDavRootUrl(): String? = getCredentials()?.let { buildWebDavRootUrl(it) }
 
     fun buildWebDavRootUrl(creds: NextcloudCredentials): String {
         val rawServer = creds.serverUrl.trim().trimEnd('/')
+        if (creds.kind == ServerKind.WEBDAV) return "$rawServer/"
         if (rawServer.contains("/remote.php/dav/files/")) return "$rawServer/"
         val user = java.net.URLEncoder.encode(creds.username, "UTF-8").replace("+", "%20")
         return "$rawServer/remote.php/dav/files/$user/$DEFAULT_FOLDER_NAME/"

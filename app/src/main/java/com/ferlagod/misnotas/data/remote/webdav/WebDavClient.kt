@@ -5,6 +5,8 @@
 package com.ferlagod.misnotas.data.remote.webdav
 
 import android.util.Xml
+import com.ferlagod.misnotas.data.local.pref.ServerUrl
+import com.ferlagod.misnotas.data.remote.http.HttpClientProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
@@ -18,26 +20,31 @@ import java.io.StringReader
 import java.net.URLDecoder
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 /**
- * Cliente WebDAV mínimo para Nextcloud / ownCloud (RFC 4918).
+ * Cliente WebDAV mínimo (RFC 4918) para Nextcloud, ownCloud y cualquier servidor WebDAV.
  *
  * Usa ETags para detectar cambios y `If-Match` / `If-None-Match` en las subidas para no
  * sobrescribir nunca un cambio remoto que no hayamos visto.
+ *
+ * Solo acepta HTTPS, salvo direcciones de la red local (ver [ServerUrl.isAllowed]).
  */
 class WebDavClient(
     baseUrl: String,
     username: String,
     appPassword: String,
-    private val okHttpClient: OkHttpClient = sharedHttpClient
+    private val okHttpClient: OkHttpClient
 ) {
 
-    private val rootUrl: String = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+    val rootUrl: String = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
     private val authHeader: String = Credentials.basic(username, appPassword, Charsets.UTF_8)
 
+    init {
+        require(ServerUrl.isAllowed(rootUrl)) { "Unencrypted HTTP is only allowed on the local network" }
+    }
+
     companion object {
-        private const val USER_AGENT = "MisNotas-Android"
+        private const val USER_AGENT = HttpClientProvider.USER_AGENT
         private val XML_MEDIA_TYPE = "application/xml; charset=utf-8".toMediaType()
 
         private val PROPFIND_XML_BODY = """
@@ -51,15 +58,6 @@ class WebDavClient(
                 </d:prop>
             </d:propfind>
         """.trimIndent()
-
-        val sharedHttpClient: OkHttpClient by lazy {
-            OkHttpClient.Builder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
-                .retryOnConnectionFailure(true)
-                .build()
-        }
 
         fun normalizeEtag(raw: String?): String? {
             if (raw.isNullOrBlank()) return null
@@ -89,7 +87,7 @@ class WebDavClient(
             response.throwIfAuthError()
             if (response.isSuccessful) return@withContext
             if (response.code != 404) {
-                throw WebDavException(response.code, "No se pudo acceder a la carpeta en Nextcloud (${response.code})")
+                throw WebDavException(response.code, "No se pudo acceder a la carpeta del servidor (${response.code})")
             }
         }
 
@@ -101,7 +99,7 @@ class WebDavClient(
             if (response.code == 409) {
                 throw WebDavException(409, "WebDAV path not found", WebDavException.Reason.PATH_NOT_FOUND)
             }
-            throw WebDavException(response.code, "No se pudo crear la carpeta en Nextcloud (${response.code})")
+            throw WebDavException(response.code, "No se pudo crear la carpeta en el servidor (${response.code})")
         }
     }
 
@@ -192,7 +190,7 @@ class WebDavClient(
         val xmlBody = okHttpClient.newCall(request).execute().use { response ->
             response.throwIfAuthError()
             if (!response.isSuccessful) {
-                throw WebDavException(response.code, "Error al listar ficheros en Nextcloud (${response.code})")
+                throw WebDavException(response.code, "Error al listar ficheros del servidor (${response.code})")
             }
             response.body?.string().orEmpty()
         }

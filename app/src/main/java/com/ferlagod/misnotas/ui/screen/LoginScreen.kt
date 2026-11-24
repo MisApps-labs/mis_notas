@@ -67,11 +67,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ferlagod.misnotas.ui.theme.RoyalBlueDark
 import com.ferlagod.misnotas.ui.theme.RoyalBlueLight
+import com.ferlagod.misnotas.data.remote.http.TrustedCertificates
+import com.ferlagod.misnotas.ui.viewmodel.DiagnosticsState
+import com.ferlagod.misnotas.ui.viewmodel.LoginFlowState
 
 @Composable
 fun LoginScreen(
     isConfigured: Boolean,
-    onSetupAndUnlock: (serverUrl: String, user: String, appPass: String, masterPass: String, onError: (String) -> Unit) -> Unit,
+    loginFlow: LoginFlowState,
+    diagnostics: DiagnosticsState,
+    trustedCerts: List<TrustedCertificates.Info>,
+    accountActions: AccountActions,
+    onConnected: () -> Unit,
     onUnlock: (masterPass: String, onError: (String) -> Unit) -> Unit,
     onResetConfig: () -> Unit,
     onSkip: () -> Unit = {}
@@ -79,12 +86,7 @@ fun LoginScreen(
     val isDark = isAppInDarkTheme()
     val focusManager = LocalFocusManager.current
 
-    var serverUrl by remember { mutableStateOf("https://") }
-    var username by remember { mutableStateOf("") }
-    var appPassword by remember { mutableStateOf("") }
     var masterPassword by remember { mutableStateOf("") }
-
-    var passwordVisible by remember { mutableStateOf(false) }
     var masterPasswordVisible by remember { mutableStateOf(false) }
 
     var isReconfiguring by remember { mutableStateOf(!isConfigured) }
@@ -148,149 +150,93 @@ fun LoginScreen(
                 Column(
                     modifier = Modifier.padding(18.dp)
                 ) {
-                    AnimatedVisibility(visible = !isConfigured || isReconfiguring) {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.section_server),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            StyledTextField(
-                                value = serverUrl,
-                                onValueChange = { serverUrl = it; errorMessage = null },
-                                placeholder = stringResource(R.string.server_hint),
-                                leadingIcon = Icons.Rounded.Storage,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Uri,
-                                    imeAction = ImeAction.Next
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            StyledTextField(
-                                value = username,
-                                onValueChange = { username = it; errorMessage = null },
-                                placeholder = stringResource(R.string.username_hint),
-                                leadingIcon = Icons.Rounded.Person,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    imeAction = ImeAction.Next
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            StyledTextField(
-                                value = appPassword,
-                                onValueChange = { appPassword = it; errorMessage = null },
-                                placeholder = stringResource(R.string.app_password_hint),
-                                leadingIcon = Icons.Rounded.Key,
-                                isPassword = true,
-                                passwordVisible = passwordVisible,
-                                onTogglePassword = { passwordVisible = !passwordVisible },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Next
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(20.dp))
-                        }
-                    }
-
-                    Text(
-                        text = stringResource(R.string.section_e2ee_short),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    StyledTextField(
-                        value = masterPassword,
-                        onValueChange = { masterPassword = it; errorMessage = null },
-                        placeholder = stringResource(R.string.master_password_hint),
-                        leadingIcon = Icons.Rounded.Lock,
-                        isPassword = true,
-                        passwordVisible = masterPasswordVisible,
-                        onTogglePassword = { masterPasswordVisible = !masterPasswordVisible },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus() }
+                    if (!isConfigured || isReconfiguring) {
+                        AccountForm(
+                            initial = null,
+                            loginFlow = loginFlow,
+                            diagnostics = diagnostics,
+                            trustedCerts = trustedCerts,
+                            submitLabel = stringResource(R.string.connect_and_unlock),
+                            actions = accountActions,
+                            onConnected = onConnected
                         )
-                    )
-
-                    // Mensaje de error
-                    if (errorMessage != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                    } else {
                         Text(
-                            text = errorMessage ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Start
+                            text = stringResource(R.string.section_e2ee_short),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Botón de acción principal en RoyalBlue
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            isLoading = true
-                            errorMessage = null
+                        StyledTextField(
+                            value = masterPassword,
+                            onValueChange = { masterPassword = it; errorMessage = null },
+                            placeholder = stringResource(R.string.master_password_hint),
+                            leadingIcon = Icons.Rounded.Lock,
+                            isPassword = true,
+                            passwordVisible = masterPasswordVisible,
+                            onTogglePassword = { masterPasswordVisible = !masterPasswordVisible },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { focusManager.clearFocus() }
+                            )
+                        )
 
-                            if (!isConfigured || isReconfiguring) {
-                                onSetupAndUnlock(
-                                    serverUrl,
-                                    username,
-                                    appPassword,
-                                    masterPassword
-                                ) { error ->
-                                    isLoading = false
-                                    errorMessage = error
-                                }
-                            } else {
+                        // Mensaje de error
+                        if (errorMessage != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = errorMessage ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Start
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Botón de acción principal en RoyalBlue
+                        Button(
+                            onClick = {
+                                focusManager.clearFocus()
+                                isLoading = true
+                                errorMessage = null
+
                                 onUnlock(masterPassword) { error ->
                                     isLoading = false
                                     errorMessage = error
                                 }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = primaryBlue,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        enabled = !isLoading && masterPassword.isNotBlank()
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = if (!isConfigured || isReconfiguring) stringResource(R.string.connect_and_unlock) else stringResource(R.string.unlock_notes),
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.SemiBold
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryBlue,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            enabled = !isLoading && masterPassword.isNotBlank()
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp
                                 )
-                            )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.unlock_notes),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                )
+                            }
                         }
                     }
                 }
