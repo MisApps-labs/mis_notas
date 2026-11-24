@@ -315,7 +315,7 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 importLauncher.launch(
-                                    arrayOf("application/zip", "text/markdown", "text/x-markdown", "text/plain", "application/octet-stream")
+                                    arrayOf("*/*")
                                 )
                             },
                             enabled = !busy,

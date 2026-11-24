@@ -54,7 +54,8 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - **Vista de cuadrícula o lista**, orden por fecha o título, progreso de las listas de tareas en cada tarjeta y **búsqueda instantánea** que ignora acentos, resalta los resultados y admite operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
 - **Widget** con botón de nota nueva y tus notas fijadas y recientes, **mosaico de ajustes rápidos** «Nueva nota» y **recordatorios** por nota (con notificación que no enseña el contenido si la app está bloqueada).
 - **Compartir**: envía notas a otras apps, cópialas o duplícalas, y crea notas desde "Compartir" en cualquier app (texto o imágenes). Acceso directo "Nueva nota" manteniendo pulsado el icono.
-- **Copia de seguridad en Markdown**: exporta todo a un ZIP (carpetas, imágenes y metadatos) e importa `.zip`, `.md` y `.txt`. Compatible con Obsidian, Joplin, etc.
+- **Copia de seguridad en Markdown**: exporta todo a un ZIP (carpetas, adjuntos y metadatos) e importa `.zip`, `.md` y `.txt`. Compatible con Obsidian, Joplin, etc.
+- **Importar desde otras apps**: Google Keep (ZIP de Google Takeout), Joplin (`.jex`), Evernote (`.enex`), Simplenote y Standard Notes (copia sin cifrar). Se conservan carpetas o cuadernos, listas de tareas, adjuntos, fijadas, papelera y fechas; las etiquetas pasan a `#hashtags`.
 - **Bloqueo de la app** con huella, cara o PIN del dispositivo, y contenido oculto en las apps recientes.
 - **Móviles plegables y tablets**: en pantallas anchas la lista y la nota se ven lado a lado; al plegar el móvil la nota sigue abierta sin perder nada.
 - **Sincronización con Nextcloud, ownCloud o cualquier WebDAV** automática: al abrir la app, al editar y cada ~30 minutos en segundo plano. Inicio de sesión de Nextcloud en el navegador, certificados autofirmados y prueba de conexión con diagnóstico.

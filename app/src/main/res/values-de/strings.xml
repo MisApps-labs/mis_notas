@@ -231,7 +231,7 @@
     <string name="auto_purge_trash">Papierkorb automatisch leeren</string>
     <string name="auto_purge_trash_desc">Notizen löschen, die länger als %1$d Tage im Papierkorb liegen</string>
     <string name="section_backup">Sicherung</string>
-    <string name="backup_desc">Exportiere alle Notizen als Markdown-Dateien (mit Ordnern und Bildern) in einer ZIP-Datei oder importiere .zip-, .md- und .txt-Dateien. Kompatibel mit Obsidian, Joplin und anderen Apps.</string>
+    <string name="backup_desc">Exportiere alle Notizen als Markdown-Dateien (mit Ordnern und Anhängen) in ein ZIP oder importiere aus Mis Notas, Obsidian (.zip/.md), Google Keep (Takeout-.zip), Joplin (.jex), Evernote (.enex), Simplenote und Standard Notes (unverschlüsseltes Backup).</string>
     <string name="safety_copy_desc">Vor dem Verbinden des Kontos gespeicherte Kopie (%1$s). Sie bleibt in der App, nicht in einem öffentlichen Ordner.</string>
     <string name="save_safety_copy">Kopie speichern…</string>
     <string name="safety_copy_saved">Kopie gespeichert</string>
@@ -392,4 +392,6 @@
     <string name="templates_folder">Vorlagenordner</string>
     <string name="templates_folder_none">Keiner</string>
     <string name="templates_folder_desc">Ihre Notizen erscheinen unter „Vorlage verwenden“. {{date}} und {{time}} werden dabei ersetzt.</string>
+    <string name="import_archived">Archiv</string>
+    <string name="import_encrypted">Dieses Backup ist verschlüsselt. Exportiere es unverschlüsselt aus der anderen App und versuche es erneut.</string>
 </resources>

@@ -232,7 +232,7 @@
     <string name="auto_purge_trash">Empty trash automatically</string>
     <string name="auto_purge_trash_desc">Delete notes that have been in the trash for more than %1$d days</string>
     <string name="section_backup">Backup</string>
-    <string name="backup_desc">Export all your notes as Markdown files (with folders and images) in a ZIP file, or import .zip, .md and .txt files. Compatible with Obsidian, Joplin and other apps.</string>
+    <string name="backup_desc">Export all your notes as Markdown files (with folders and attachments) in a ZIP, or import from Mis Notas, Obsidian (.zip/.md), Google Keep (Takeout .zip), Joplin (.jex), Evernote (.enex), Simplenote and Standard Notes (unencrypted backup).</string>
     <string name="safety_copy_desc">Copy saved before connecting your account (%1$s). It stays inside the app, not in a public folder.</string>
     <string name="save_safety_copy">Save copy…</string>
     <string name="safety_copy_saved">Copy saved</string>
@@ -393,4 +393,6 @@
     <string name="templates_folder">Templates folder</string>
     <string name="templates_folder_none">None</string>
     <string name="templates_folder_desc">Its notes are offered in “Use template”. {{date}} and {{time}} are replaced when used.</string>
+    <string name="import_archived">Archive</string>
+    <string name="import_encrypted">That backup is encrypted. Export it unencrypted from the other app and try again.</string>
 </resources>

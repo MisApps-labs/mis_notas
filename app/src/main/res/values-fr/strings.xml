@@ -236,7 +236,7 @@
     <string name="auto_purge_trash">Vider la corbeille automatiquement</string>
     <string name="auto_purge_trash_desc">Supprimer les notes présentes dans la corbeille depuis plus de %1$d jours</string>
     <string name="section_backup">Sauvegarde</string>
-    <string name="backup_desc">Exportez toutes vos notes en fichiers Markdown (avec dossiers et images) dans un ZIP, ou importez des fichiers .zip, .md et .txt. Compatible avec Obsidian, Joplin et d’autres apps.</string>
+    <string name="backup_desc">Exportez toutes vos notes en fichiers Markdown (avec dossiers et pièces jointes) dans un ZIP, ou importez depuis Mis Notas, Obsidian (.zip/.md), Google Keep (.zip Takeout), Joplin (.jex), Evernote (.enex), Simplenote et Standard Notes (sauvegarde non chiffrée).</string>
     <string name="safety_copy_desc">Copie enregistrée avant de connecter le compte (%1$s). Elle reste dans l’app, pas dans un dossier public.</string>
     <string name="save_safety_copy">Enregistrer la copie…</string>
     <string name="safety_copy_saved">Copie enregistrée</string>
@@ -406,4 +406,6 @@
     <string name="templates_folder">Dossier des modèles</string>
     <string name="templates_folder_none">Aucun</string>
     <string name="templates_folder_desc">Ses notes sont proposées dans « Utiliser un modèle ». {{date}} et {{time}} sont remplacés à l’usage.</string>
+    <string name="import_archived">Archives</string>
+    <string name="import_encrypted">Cette sauvegarde est chiffrée. Exportez-la sans chiffrement depuis l’autre app et réessayez.</string>
 </resources>

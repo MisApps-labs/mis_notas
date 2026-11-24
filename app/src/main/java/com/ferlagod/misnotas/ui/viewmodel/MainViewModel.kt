@@ -1146,7 +1146,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (uris.isEmpty()) return
         runBusy {
             val result = backupManager.import(uris)
-            val message = if (result.notes == 0) text(R.string.import_nothing) else quantity(R.plurals.import_done, result.notes)
+            val message = when {
+                result.encrypted && result.notes == 0 -> text(R.string.import_encrypted)
+                result.notes == 0 -> text(R.string.import_nothing)
+                else -> quantity(R.plurals.import_done, result.notes)
+            }
             _events.trySend(UiEvent.Message(message))
             if (result.notes > 0) triggerSync()
         }

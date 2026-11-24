@@ -13,6 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Etiquetas con `#hashtags` dentro del texto (con subetiquetas `#a/b`): sección en el inicio, filtro, chips en las tarjetas y resaltado en el lector y el editor.
 - Búsqueda con operadores: `"frase exacta"`, `-excluir` y `#etiqueta`.
 - Historial de versiones de cada nota, guardado en el dispositivo, con vista previa y restauración.
+- Importar desde Google Keep (Takeout), Joplin (.jex), Evernote (.enex), Simplenote y Standard Notes (copia sin cifrar), con carpetas, tareas, adjuntos, fechas y etiquetas como #hashtags.
 - Enlaces entre notas `[[Título]]` / `[[Título|texto]]`, botón «Enlazar nota» en la barra de formato y sección «Enlazada desde».
 - Plantillas: carpeta de plantillas en Ajustes y «Usar plantilla» en el menú de la nota, con `{{fecha}}`, `{{hora}}` y `{{datetime}}`.
 - Adjuntar cualquier archivo (PDF, audio, documentos…, hasta 25 MB): se cifra y sincroniza como las imágenes, se abre con la app que elijas y se conserva al exportar e importar.

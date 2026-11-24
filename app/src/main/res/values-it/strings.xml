@@ -236,7 +236,7 @@
     <string name="auto_purge_trash">Svuota il cestino automaticamente</string>
     <string name="auto_purge_trash_desc">Elimina le note nel cestino da più di %1$d giorni</string>
     <string name="section_backup">Backup</string>
-    <string name="backup_desc">Esporta tutte le note come file Markdown (con cartelle e immagini) in uno ZIP, oppure importa file .zip, .md e .txt. Compatibile con Obsidian, Joplin e altre app.</string>
+    <string name="backup_desc">Esporta tutte le note come file Markdown (con cartelle e allegati) in uno ZIP, o importa da Mis Notas, Obsidian (.zip/.md), Google Keep (.zip di Takeout), Joplin (.jex), Evernote (.enex), Simplenote e Standard Notes (backup non cifrato).</string>
     <string name="safety_copy_desc">Copia salvata prima di collegare l’account (%1$s). Resta nell’app, non in una cartella pubblica.</string>
     <string name="save_safety_copy">Salva copia…</string>
     <string name="safety_copy_saved">Copia salvata</string>
@@ -406,4 +406,6 @@
     <string name="templates_folder">Cartella dei modelli</string>
     <string name="templates_folder_none">Nessuna</string>
     <string name="templates_folder_desc">Le sue note sono proposte in «Usa modello». {{date}} e {{time}} vengono sostituiti all’uso.</string>
+    <string name="import_archived">Archivio</string>
+    <string name="import_encrypted">Questo backup è cifrato. Esportalo senza cifratura dall’altra app e riprova.</string>
 </resources>

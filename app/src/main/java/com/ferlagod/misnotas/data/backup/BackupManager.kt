@@ -35,7 +35,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /** Resultado de una importación. */
-data class ImportResult(val notes: Int, val skipped: Int)
+/** [encrypted]: había una copia cifrada de otra app que no se puede leer. */
+data class ImportResult(val notes: Int, val skipped: Int, val encrypted: Boolean = false)
 
 /**
  * Copia de seguridad local en Markdown, independiente de Nextcloud.
@@ -206,6 +207,7 @@ class BackupManager(context: Context) {
     suspend fun import(uris: List<Uri>): ImportResult = withContext(Dispatchers.IO) {
         var imported = 0
         var skipped = 0
+        var encrypted = false
         for (uri in uris) {
             val name = displayName(uri) ?: uri.lastPathSegment.orEmpty()
             try {
@@ -214,6 +216,30 @@ class BackupManager(context: Context) {
                         val result = importZip(uri)
                         imported += result.notes
                         skipped += result.skipped
+                    }
+                    name.endsWith(".enex", ignoreCase = true) -> {
+                        imported += insertImported(openStream(uri).buffered().use { ForeignImport.parseEnex(it) })
+                    }
+                    name.endsWith(".jex", ignoreCase = true) -> {
+                        val tempDir = File(appContext.cacheDir, "import-${UUID.randomUUID()}").apply { mkdirs() }
+                        try {
+                            val entries = openStream(uri).buffered().use { ForeignImport.extractTar(it, tempDir, MAX_ENTRY_BYTES, MAX_ZIP_BYTES) }
+                            imported += insertImported(ForeignImport.parseJoplin(entries))
+                        } finally {
+                            tempDir.deleteRecursively()
+                        }
+                    }
+                    name.endsWith(".json", true) || looksLikeJson(uri, name) -> {
+                        val json = org.json.JSONObject(readLimited(openStream(uri), MAX_NOTE_BYTES * 5).toString(Charsets.UTF_8))
+                        when {
+                            ForeignImport.isSimplenote(json) -> imported += insertImported(ForeignImport.parseSimplenote(json))
+                            ForeignImport.isStandardNotes(json) && ForeignImport.isEncryptedStandardNotes(json) -> {
+                                skipped++
+                                encrypted = true
+                            }
+                            ForeignImport.isStandardNotes(json) -> imported += insertImported(ForeignImport.parseStandardNotes(json))
+                            else -> skipped++
+                        }
                     }
                     name.endsWith(".md", true) || name.endsWith(".markdown", true) || name.endsWith(".txt", true) -> {
                         val text = readLimited(openStream(uri), MAX_NOTE_BYTES).toString(Charsets.UTF_8)
@@ -225,9 +251,66 @@ class BackupManager(context: Context) {
                 }
             } catch (e: IOException) {
                 skipped++
+            } catch (e: org.json.JSONException) {
+                skipped++
+            } catch (e: org.xml.sax.SAXException) {
+                skipped++
             }
         }
-        ImportResult(imported, skipped)
+        ImportResult(imported, skipped, encrypted)
+    }
+
+    /** Copias de Standard Notes: un `.txt` que en realidad es JSON. */
+    private fun looksLikeJson(uri: Uri, name: String): Boolean {
+        if (!name.endsWith(".txt", true)) return false
+        return try {
+            openStream(uri).use { input ->
+                val head = ByteArray(64)
+                val n = input.read(head)
+                n > 0 && String(head, 0, n, Charsets.UTF_8).trimStart().startsWith("{")
+            }
+        } catch (_: IOException) {
+            false
+        }
+    }
+
+    /** Guarda notas de otra app: carpetas, adjuntos y etiquetas como #hashtags. */
+    private suspend fun insertImported(notes: List<ForeignImport.ImportedNote>): Int {
+        val folderCache = HashMap<String, String?>()
+        val stored = HashMap<String, String>()
+        var count = 0
+        for (note in notes) {
+            if (note.title.isBlank() && note.content.isBlank() && note.attachments.isEmpty()) continue
+            var content = note.content
+            for (a in note.attachments) {
+                val id = stored[a.key] ?: try {
+                    val bytes = a.bytes()
+                    if (bytes.size > AttachmentStore.MAX_FILE_BYTES) null
+                    else storeAttachment(bytes, a.name, a.mime).also { stored[a.key] = it }
+                } catch (_: Exception) {
+                    null
+                }
+                content = content.replace(ForeignImport.PLACEHOLDER + a.key, if (id != null) AttachmentStore.reference(id) else a.name)
+            }
+            content = ForeignImport.withTags(content, note.tags)
+            val folderId = ensureFolderPath(note.folderPath.filter { it.isNotBlank() }, folderCache)
+            database.withTransaction {
+                noteDao.upsertNote(
+                    NoteEntity(
+                        folderId = folderId,
+                        title = note.title.trim(),
+                        content = content.trimEnd(),
+                        isPinned = note.pinned,
+                        isDeleted = note.trashed,
+                        color = NoteColor.fromKey(note.color ?: NoteColor.DEFAULT.key).key,
+                        updatedAt = note.updatedAt ?: System.currentTimeMillis(),
+                        syncStatus = SyncStatus.PENDING_UPLOAD
+                    )
+                )
+            }
+            count++
+        }
+        return count
     }
 
     private suspend fun importZip(uri: Uri): ImportResult {
@@ -247,6 +330,17 @@ class BackupManager(context: Context) {
                     val file = File(tempDir, (index++).toString())
                     total += copyLimited(zip, file, MAX_ENTRY_BYTES, MAX_ZIP_BYTES - total)
                     entries[path] = file
+                }
+            }
+            val archived = com.ferlagod.misnotas.util.LanguageManager.localizedContext(appContext)
+                .getString(com.ferlagod.misnotas.R.string.import_archived)
+            if (ForeignImport.isKeepTakeout(entries.keys)) {
+                return ImportResult(insertImported(ForeignImport.parseKeep(entries, archived)), 0)
+            }
+            entries.entries.firstOrNull { it.key.endsWith("notes.json", ignoreCase = true) }?.let { (_, file) ->
+                val json = runCatching { org.json.JSONObject(file.readText()) }.getOrNull()
+                if (json != null && ForeignImport.isSimplenote(json)) {
+                    return ImportResult(insertImported(ForeignImport.parseSimplenote(json)), 0)
                 }
             }
             return importEntries(entries)
@@ -339,7 +433,7 @@ class BackupManager(context: Context) {
         return copied
     }
 
-    private suspend fun storeAttachment(bytes: ByteArray, path: String): String {
+    private suspend fun storeAttachment(bytes: ByteArray, path: String, mime: String? = null): String {
         val id = UUID.randomUUID().toString()
         attachmentStore.write(id, bytes)
         val byExtension = when (path.substringAfterLast('.').lowercase()) {
@@ -350,8 +444,8 @@ class BackupManager(context: Context) {
             else -> AttachmentStore.mimeForName(path) ?: "application/octet-stream"
         }
         // Manda el contenido: un .png que en realidad es JPEG se exporta luego como .jpg.
-        val mime = AttachmentStore.detectMimeType(bytes, fallback = byExtension)
-        attachmentDao.upsert(AttachmentEntity(id = id, mimeType = mime, size = bytes.size.toLong()))
+        val detected = AttachmentStore.detectMimeType(bytes, fallback = mime ?: byExtension)
+        attachmentDao.upsert(AttachmentEntity(id = id, mimeType = detected, size = bytes.size.toLong()))
         return id
     }
 

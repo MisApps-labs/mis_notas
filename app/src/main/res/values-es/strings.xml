@@ -236,7 +236,7 @@
     <string name="auto_purge_trash">Vaciar la papelera automáticamente</string>
     <string name="auto_purge_trash_desc">Elimina las notas que llevan más de %1$d días en la papelera</string>
     <string name="section_backup">Copia de seguridad</string>
-    <string name="backup_desc">Exporta todas tus notas como ficheros Markdown (con carpetas e imágenes) en un ZIP, o importa ficheros .zip, .md y .txt. Compatible con Obsidian, Joplin y otras apps.</string>
+    <string name="backup_desc">Exporta todas tus notas como ficheros Markdown (con carpetas y adjuntos) en un ZIP, o importa desde Mis Notas, Obsidian (.zip/.md), Google Keep (.zip de Takeout), Joplin (.jex), Evernote (.enex), Simplenote y Standard Notes (copia sin cifrar).</string>
     <string name="safety_copy_desc">Copia guardada antes de conectar la cuenta (%1$s). Se guarda dentro de la app, no en una carpeta pública.</string>
     <string name="save_safety_copy">Guardar copia…</string>
     <string name="safety_copy_saved">Copia guardada</string>
@@ -406,4 +406,6 @@
     <string name="templates_folder">Carpeta de plantillas</string>
     <string name="templates_folder_none">Ninguna</string>
     <string name="templates_folder_desc">Sus notas se ofrecen en «Usar plantilla». {{fecha}} y {{hora}} se sustituyen al usarlas.</string>
+    <string name="import_archived">Archivo</string>
+    <string name="import_encrypted">Esa copia está cifrada. Expórtala sin cifrar desde la otra app y vuelve a intentarlo.</string>
 </resources>
