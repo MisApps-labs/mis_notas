@@ -98,6 +98,12 @@ En **Ajustes → Sincronización → Cifrado** puedes actualizar la bóveda a **
 > [!WARNING]
 > **Si olvidas la contraseña maestra y no tienes clave de recuperación, no hay forma de recuperar las notas guardadas en el servidor.** Ni el administrador de Nextcloud ni el autor de la app pueden descifrarlas. Guárdala en un gestor de contraseñas.
 
+## Tus notas no dependen de la app
+
+- El [formato del servidor](docs/SYNC_FORMAT.md) está documentado al completo.
+- [`tools/misnotas-decrypt`](tools/misnotas-decrypt) es un programa de línea de comandos (Python) que descifra la carpeta del servidor y la exporta a Markdown con tu contraseña maestra o tu clave de recuperación, sin necesitar Mis Notas.
+- La copia de seguridad exporta Markdown normal que abre Obsidian o cualquier editor.
+
 ## Seguridad en breve
 
 - La clave se deriva de tu contraseña maestra con PBKDF2-HMAC-SHA256 (600.000 iteraciones) y un *salt* aleatorio; con el cifrado v3, con **Argon2id** y cifrado en sobre.
