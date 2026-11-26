@@ -14,6 +14,10 @@
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84.svg">
 </p>
 
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.ferlagod.misnotas&amp;hl=es"><img alt="Disponible en Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/es_badge_web_generic.png" height="80"></a>
+</p>
+
 ---
 
 Mis Notas combina un diseño limpio con la organización por carpetas y el Markdown de apps como Joplin o Notesnook. Tus notas viven en el teléfono, y si quieres se sincronizan **cifradas** con tu servidor Nextcloud: el servidor solo guarda datos ilegibles.
@@ -67,6 +71,10 @@ Además de esta aplicación para Android, puedes acceder a tus notas sincronizad
 - Sin anuncios, sin rastreadores, sin servicios de Google.
 
 ## Instalación
+
+<a href="https://play.google.com/store/apps/details?id=com.ferlagod.misnotas&amp;hl=es"><img alt="Disponible en Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/es_badge_web_generic.png" height="60"></a>
+
+Instálala desde [Google Play](https://play.google.com/store/apps/details?id=com.ferlagod.misnotas&hl=es) o, si lo prefieres, a mano:
 
 1. Descarga el último `.apk` desde la página de [Releases](https://github.com/MisApps-labs/mis_notas/releases).
 2. Ábrelo en tu teléfono y permite la instalación desde esa fuente si Android te lo pide.
